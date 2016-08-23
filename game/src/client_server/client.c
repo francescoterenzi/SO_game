@@ -127,8 +127,9 @@ int main(int argc, char **argv) {
 	
 	
 	/*** UDP PART NOTIFICATION ***/
-	pthread_attr_t runner_attrs;
 	pthread_t connection_checker;
+	pthread_t run_global;
+
 	
 	UpdaterArgs runner_args = {
 		.run=1,
@@ -136,20 +137,25 @@ int main(int argc, char **argv) {
 		.tcp_desc = socket_desc,
 		.texture = vehicle_texture,
 		.vehicle = vehicle,
-		.world = &world
+		.world = &world,
+		.argc = argc,
+		.argv = argv
 	};
-	  
-	pthread_attr_init(&runner_attrs);
 	
-	ret = pthread_create(&runner_thread, &runner_attrs, updater_thread, &runner_args);
+	
+	ret = pthread_create(&runner_thread, NULL, updater_thread, &runner_args);
 	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create runner thread");
 		
-	ret = pthread_create(&connection_checker, NULL, (void*)connection_checker_thread, &runner_args);
+	ret = pthread_create(&connection_checker, NULL, connection_checker_thread, &runner_args);
 	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create connection_checker thread");
 	
-	WorldViewer_runGlobal(&world, vehicle, &argc, argv);
-	runner_args.run=0;
+	ret = pthread_create(&run_global, NULL, run_global_thread, &runner_args);
+	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create connection_checker thread");
 	
+	
+	ret = pthread_join(run_global, NULL);
+	if(ret != 0) PTHREAD_ERROR_HELPER(ret, "Error: failed join runglobal thread");
+		
 	ret = pthread_join(runner_thread, NULL);
 	if(ret!=0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret, "Error: failed join udp thread");
 	
@@ -188,7 +194,6 @@ int main(int argc, char **argv) {
 	
 	return 0;             
 }
-
 
 void *updater_thread(void *args) {
 	
@@ -229,20 +234,22 @@ void *updater_thread(void *args) {
 	return 0;
 }
 
-void connection_checker_thread(void* args){
+void *connection_checker_thread(void* args){
 	UpdaterArgs* arg = (UpdaterArgs*) args;
 	int tcp_desc = arg->tcp_desc;
 	int ret;
 	char c;
 	
 	while(1){
+
 		ret = recv(tcp_desc , &c , 1 , MSG_PEEK); // this only checks if recv returns 0, without removing data from queue
 		if(ret < 0 && errno == EINTR) continue;
 		ERROR_HELPER(ret , "Error on receive in connection checker thread"); 
 		
 		if(ret == 0) break;
 		usleep(30000);
-	}	
+	}
+
 	arg->run = 0;	
 	//if(DEBUG) fprintf(stdout,"Connection ended\n");
 	
@@ -256,6 +263,24 @@ void connection_checker_thread(void* args){
 		if(v->id != arg->id) World_detachVehicle(arg->world , v);
 		item = item->next;
 	}
+	
 	Client_siglePlayerNotification();
-	return;
+	return NULL;
+}
+
+void *run_global_thread(void *args) {
+	
+	UpdaterArgs* arg = (UpdaterArgs*) args;
+
+	// variables
+	World *world = arg->world;
+	Vehicle *vehicle = arg->vehicle;
+	int argc = arg->argc;
+	char **argv = arg->argv;
+
+	WorldViewer_runGlobal(world, vehicle, &argc, argv);
+	arg->run=0;
+
+
+	return NULL;
 }

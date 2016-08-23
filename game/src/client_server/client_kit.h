@@ -17,11 +17,16 @@ typedef struct {
   Image *texture;
   Vehicle *vehicle;
   World *world;
+  int argc;
+  char **argv;
 } UpdaterArgs;
 
 void welcome_client(int id);
 void Client_siglePlayerNotification(void);
 Image* get_vehicle_texture(void);
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, World *world);
+
+// thread functions
 void *updater_thread(void *args);
-void connection_checker_thread(void* args);
+void *connection_checker_thread(void* args);
+void *run_global_thread(void *args);
