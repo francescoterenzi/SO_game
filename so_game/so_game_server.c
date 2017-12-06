@@ -3,6 +3,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "image.h"
@@ -84,5 +85,15 @@ int main(int argc, char **argv) {
 
   // // cleanup
   // World_destroy(&world);
+  
+  
+  /*** UDP SERVER ***/
+  
+  
+  
+  /*** TCP SERVER ***/
+  
+  
+  
   return 0;             
 }

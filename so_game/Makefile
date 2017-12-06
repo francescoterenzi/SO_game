@@ -39,7 +39,7 @@ libso_game.a: $(OBJS)
 	$(AR) -rcs $@ $^
 	$(RM) $(OBJS)
 
-so_game: so_game.c libso_game.a 
+so_game: so_game_server.c libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o $@ $^ $(LIBS)
 
 test_packets_serialization: test_packets_serialization.c libso_game.a  

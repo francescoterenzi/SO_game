@@ -1,15 +1,24 @@
-VideoGame (2 people)
-   - implement a distributed videogame
+#OPERATING SISTEMS PROJECT
+
+## VideoGame (2 people)
+	- implement a distributed videogame
+    
+    
      Server Side:
      - the server operates in both TCP and UDP
+    
+	   /*** VALERIO ***/
        TCP Part
        - registerning a new client when it comes online
        - deregistering a client when it goes offline
        - sending the map, when the client requests it
-     - UDP part
+    
+	   /*** FRANCESCO ***/
+	   UDP part
        - the server receives preiodic upates from the client
          in the form of
-	 <timestamp, translational acceleration, rotational acceleration>
+         <timestamp, translational acceleration, rotational acceleration>
+	 
 	 Each "epoch" it integrates the messages from the clients,
 	 and sends back a state update
        - the server sends to each connected client
@@ -25,3 +34,11 @@ VideoGame (2 people)
        - updates the viewer (provided)
        - reads either keyboard or joystick
        - sends the <UDP> packet of the control to the server
+
+     
+## Authors
+- [Giorgio Grisetti](https://gitlab.com/grisetti)
+
+# Contributors
+- [Valerio Nicolanti](https://github.com/valenico)
+- [Francesco Terenzi](https://github.com/fratere)
