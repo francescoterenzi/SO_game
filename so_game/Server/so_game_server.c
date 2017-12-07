@@ -6,20 +6,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-<<<<<<< Updated upstream:so_game/Server/so_game_server.c
 // for the udp_socket
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#include "../image.h"
-#include "../surface.h"
-#include "../world.h"
-#include "../vehicle.h"
-#include "../world_viewer.h"
 
 #define PORT 3000
 #define UDP_BUFLEN 512
-=======
+
 #include "image.h"
 #include "surface.h"
 #include "world.h"
@@ -33,7 +27,7 @@ int id;
 
 void *client_handler(void *arg){
 }
->>>>>>> Stashed changes:so_game/so_game_server.c
+
 
 int main(int argc, char **argv) {
 	  if (argc<3) {
@@ -239,6 +233,4 @@ int main(int argc, char **argv) {
   
  
   return 0;             
-}
-=======
->>>>>>> Stashed changes:so_game/so_game_server.c
+
