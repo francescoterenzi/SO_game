@@ -19,7 +19,7 @@ typedef struct {
   World* world;
 } UpdaterArgs;
 
-// this is the updater threas that takes care of refreshing the agent position
+// this is the updater thread that takes care of refreshing the agent position
 // in your client it is not needed, but you will
 // have to copy the x,y,theta fields from the world update packet
 // to the vehicles having the corrsponding id

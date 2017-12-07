@@ -6,20 +6,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-<<<<<<< Updated upstream:so_game/Server/so_game_server.c
-// for the udp_socket
-#include <arpa/inet.h>
-#include <sys/socket.h>
-
-#include "../image.h"
-#include "../surface.h"
-#include "../world.h"
-#include "../vehicle.h"
-#include "../world_viewer.h"
-
-#define PORT 3000
-#define UDP_BUFLEN 512
-=======
 #include "image.h"
 #include "surface.h"
 #include "world.h"
@@ -33,7 +19,6 @@ int id;
 
 void *client_handler(void *arg){
 }
->>>>>>> Stashed changes:so_game/so_game_server.c
 
 int main(int argc, char **argv) {
 	  if (argc<3) {
@@ -179,66 +164,3 @@ int main(int argc, char **argv) {
   // // cleanup
   // World_destroy(&world);
   
-<<<<<<< Updated upstream:so_game/Server/so_game_server.c
-  
-  /*** TCP SERVER ***/
-  
-  
-  /** UDP SERVER
-   * Single thread implementation, if needed I can change it in a multi-thread implemetation.
-   * A error handler is required!
-   **/
-  
-  struct sockaddr_in si_me, client_addr;
-  char buf[UDP_BUFLEN];
-  int udp_socket, res, sockaddr_len = sizeof(client_addr);
-  
-  // create the socket
-  printf("Creating the udp_socket...\n");
-  udp_socket=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if(udp_socket >= 0) {
-    printf("Done! \n");
-  } else {
-    printf("Fail! \n");
-  }
-  
-  // zero the memory
-  memset((char *) &si_me, 0, sizeof(si_me));
-     
-  si_me.sin_family = AF_INET;
-  si_me.sin_port = htons(PORT);
-  si_me.sin_addr.s_addr = htonl(INADDR_ANY);
-  
-  
-  //bind the socket to port
-  printf("Binding the socket to port %d\n", PORT);
-  res = bind(udp_socket , (struct sockaddr*)&si_me, sizeof(si_me));
-  if(res >= 0) {
-    printf("Done! \n");
-  } else {
-    printf("Fail! \n");
-  }
-  
-  //Listening on port 3000
-  while(1) {
-	  
-	  printf("Waiting for data...\n");
-	  res = recvfrom(udp_socket, buf, UDP_BUFLEN, 0, (struct sockaddr *) &client_addr, (socklen_t *) &sockaddr_len);
-	  
-	  if(res >= 0) {
-		  // it should be in this form <timestamp, translational acceleration, rotational acceleration>
-		  printf("Received packet from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-		  printf("Data: %s\n" , buf);
-	  }
-	  else {
-		printf("recv failed\n");
-		continue;
-	  }
-
-  }
-  
- 
-  return 0;             
-}
-=======
->>>>>>> Stashed changes:so_game/so_game_server.c
