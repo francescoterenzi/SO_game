@@ -1,7 +1,8 @@
 #OPERATING SISTEMS PROJECT
 
 ## VideoGame (2 people)
-	- implement a distributed videogame
+	
+	Implement a distributed videogame
     
     
      Server Side:
@@ -36,7 +37,7 @@
        - sends the <UDP> packet of the control to the server
 
      
-## Authors
+# Authors
 - [Giorgio Grisetti](https://gitlab.com/grisetti)
 
 # Contributors
