@@ -10,11 +10,11 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#include "image.h"
-#include "surface.h"
-#include "world.h"
-#include "vehicle.h"
-#include "world_viewer.h"
+#include "../image.h"
+#include "../surface.h"
+#include "../world.h"
+#include "../vehicle.h"
+#include "../world_viewer.h"
 
 #define PORT 3000
 #define UDP_BUFLEN 512

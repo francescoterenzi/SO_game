@@ -1,1 +1,1 @@
-cd so_game && ./so_game ./images/test.pgm ./images/test.ppm
+cd so_game && ./so_game_server ./images/test.pgm ./images/test.ppm
