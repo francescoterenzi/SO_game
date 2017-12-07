@@ -11,21 +11,9 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-<<<<<<< HEAD
-#include "../image.h"
-#include "../surface.h"
-#include "../world.h"
-#include "../vehicle.h"
-#include "../world_viewer.h"
-#include "../linked_list.h"
-=======
->>>>>>> 6e0985ee6bf1891d5c6686c8e3cde507b75d57e1
-
 #define SERVER_PORT 3000
 #define UDP_BUFLEN 512
-<<<<<<< HEAD
 #define  MAX_CONN_QUEUE 20
-=======
 
 #include "image.h"
 #include "surface.h"
@@ -34,7 +22,6 @@
 #include "world_viewer.h"
 #include "common.h"
 #include "linked_list.h"
->>>>>>> 6e0985ee6bf1891d5c6686c8e3cde507b75d57e1
 
 World world;
 int id;
@@ -42,10 +29,6 @@ int id;
 void *client_handler(void *arg){
 	return NULL;
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> 6e0985ee6bf1891d5c6686c8e3cde507b75d57e1
 
 int main(int argc, char **argv) {
 	if (argc<3) {
@@ -82,45 +65,6 @@ int main(int argc, char **argv) {
 		printf("Fail! \n");
 	}
 
-
-	// not needed here
-	// construct the world
-	// World_init(&world, surface_elevation, surface_texture,  0.5, 0.5, 0.5);
-
-	// // create a vehicle
-	// vehicle=(Vehicle*) malloc(sizeof(Vehicle));
-	// Vehicle_init(vehicle, &world, 0, vehicle_texture);
-
-	// // add it to the world
-	// World_addVehicle(&world, vehicle);
-
-
-
-	// // initialize GL
-	// glutInit(&argc, argv);
-	// glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-	// glutCreateWindow("main");
-
-	// // set the callbacks
-	// glutDisplayFunc(display);
-	// glutIdleFunc(idle);
-	// glutSpecialFunc(specialInput);
-	// glutKeyboardFunc(keyPressed);
-	// glutReshapeFunc(reshape);
-
-	// WorldViewer_init(&viewer, &world, vehicle);
-
-
-	// // run the main GL loop
-	// glutMainLoop();
-
-	// // check out the images not needed anymore
-	// Image_free(vehicle_texture);
-	// Image_free(surface_texture);
-	// Image_free(surface_elevation);
-
-	// // cleanup
-	// World_destroy(&world);
 
 
 	/*** TCP SERVER ***/
@@ -241,72 +185,45 @@ int main(int argc, char **argv) {
 
 	exit(EXIT_SUCCESS); // this will never be executed
 }
-  
 
-<<<<<<< HEAD
-=======
-  // // cleanup
-  // World_destroy(&world);
-  
-<<<<<<< Updated upstream:so_game/Server/so_game_server.c
-  
-  /*** TCP SERVER ***/
-  
-  
-  /** UDP SERVER
-   * Single thread implementation, if needed I can change it in a multi-thread implemetation.
-   * A error handler is required!
-   **/
-  
-  struct sockaddr_in si_me, client_addr;
-  char buf[UDP_BUFLEN];
-  int udp_socket, res, sockaddr_len = sizeof(client_addr);
-  
-  // create the socket
-  printf("Creating the udp_socket...\n");
-  udp_socket=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if(udp_socket >= 0) {
-    printf("Done! \n");
-  } else {
-    printf("Fail! \n");
-  }
-  
-  // zero the memory
-  memset((char *) &si_me, 0, sizeof(si_me));
-     
-  si_me.sin_family = AF_INET;
-  si_me.sin_port = htons(PORT);
-  si_me.sin_addr.s_addr = htonl(INADDR_ANY);
-  
-  
-  //bind the socket to port
-  printf("Binding the socket to port %d\n", PORT);
-  res = bind(udp_socket , (struct sockaddr*)&si_me, sizeof(si_me));
-  if(res >= 0) {
-    printf("Done! \n");
-  } else {
-    printf("Fail! \n");
-  }
-  
-  //Listening on port 3000
-  while(1) {
-	  
-	  printf("Waiting for data...\n");
-	  res = recvfrom(udp_socket, buf, UDP_BUFLEN, 0, (struct sockaddr *) &client_addr, (socklen_t *) &sockaddr_len);
-	  
-	  if(res >= 0) {
-		  // it should be in this form <timestamp, translational acceleration, rotational acceleration>
-		  printf("Received packet from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-		  printf("Data: %s\n" , buf);
-	  }
-	  else {
-		printf("recv failed\n");
-		continue;
-	  }
 
-  }
-  
- 
-  return 0;             
 
->>>>>>> 6e0985ee6bf1891d5c6686c8e3cde507b75d57e1
+	// not needed here
+	// construct the world
+	// World_init(&world, surface_elevation, surface_texture,  0.5, 0.5, 0.5);
+
+	// // create a vehicle
+	// vehicle=(Vehicle*) malloc(sizeof(Vehicle));
+	// Vehicle_init(vehicle, &world, 0, vehicle_texture);
+
+	// // add it to the world
+	// World_addVehicle(&world, vehicle);
+
+
+
+	// // initialize GL
+	// glutInit(&argc, argv);
+	// glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+	// glutCreateWindow("main");
+
+	// // set the callbacks
+	// glutDisplayFunc(display);
+	// glutIdleFunc(idle);
+	// glutSpecialFunc(specialInput);
+	// glutKeyboardFunc(keyPressed);
+	// glutReshapeFunc(reshape);
+
+	// WorldViewer_init(&viewer, &world, vehicle);
+
+
+	// // run the main GL loop
+	// glutMainLoop();
+
+	// // check out the images not needed anymore
+	// Image_free(vehicle_texture);
+	// Image_free(surface_texture);
+	// Image_free(surface_elevation);
+
+	// // cleanup
+	// World_destroy(&world);
+
