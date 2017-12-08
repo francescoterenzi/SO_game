@@ -113,11 +113,21 @@ int main(int argc, char **argv) {
 	pthread_t tcp_thread;
 	pthread_t udp_thread;
 	
-	
+	printf("Creating udp and tcp sockets..\n");
 	ret = pthread_create(&tcp_thread, NULL, tcp_handler, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the tcp_thread!");
 	ret = pthread_create(&udp_thread, NULL, udp_handler, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the udp_thread!");
+	printf("Done!\n");
+	
+	printf("Joining udp and tcp sockets..\n");
+	ret = pthread_join(tcp_thread, NULL);
+	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
+	ret = pthread_join(udp_thread, NULL);
+	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
+	printf("Done!\n");
+	
+	exit(EXIT_SUCCESS); // this will never be executed
 }
 
 void *tcp_handler(void *arg) {
@@ -180,6 +190,8 @@ void *tcp_handler(void *arg) {
 	    PTHREAD_ERROR_HELPER(ret, "Could not detach the thread");
 
 	}
+	
+	return NULL;
 
 }
 
@@ -230,7 +242,6 @@ void *udp_handler(void *arg) {
 			continue;
 		}
 	}
-
-	exit(EXIT_SUCCESS); // this will never be executed
+	return NULL;
 }
 
