@@ -26,6 +26,11 @@ typedef struct thread_args {
 	int id;
 } thread_args;
 
+// SOCKET HANDLERS
+void *tcp_handler(void *arg);
+void *udp_handler(void *arg);
+
+
 void *client_handler(void *arg){
 	return NULL;
 }
@@ -64,12 +69,60 @@ int main(int argc, char **argv) {
 	} else {
 		printf("Fail! \n");
 	}
+	
+		// not needed here
+	// construct the world
+	// World_init(&world, surface_elevation, surface_texture,  0.5, 0.5, 0.5);
+
+	// // create a vehicle
+	// vehicle=(Vehicle*) malloc(sizeof(Vehicle));
+	// Vehicle_init(vehicle, &world, 0, vehicle_texture);
+
+	// // add it to the world
+	// World_addVehicle(&world, vehicle);
 
 
 
-	/*** TCP SERVER ***/
-	int socket_desc, client_desc;
+	// // initialize GL
+	// glutInit(&argc, argv);
+	// glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+	// glutCreateWindow("main");
+
+	// // set the callbacks
+	// glutDisplayFunc(display);
+	// glutIdleFunc(idle);
+	// glutSpecialFunc(specialInput);
+	// glutKeyboardFunc(keyPressed);
+	// glutReshapeFunc(reshape);
+
+	// WorldViewer_init(&viewer, &world, vehicle);
+
+
+	// // run the main GL loop
+	// glutMainLoop();
+
+	// // check out the images not needed anymore
+	// Image_free(vehicle_texture);
+	// Image_free(surface_texture);
+	// Image_free(surface_elevation);
+
+	// // cleanup
+	// World_destroy(&world);
+
 	int ret;
+	pthread_t tcp_thread;
+	pthread_t udp_thread;
+	
+	
+	ret = pthread_create(&tcp_thread, NULL, tcp_handler, NULL);
+	PTHREAD_ERROR_HELPER(ret, "Cannot create the tcp_thread!");
+	ret = pthread_create(&udp_thread, NULL, udp_handler, NULL);
+	PTHREAD_ERROR_HELPER(ret, "Cannot create the udp_thread!");
+}
+
+void *tcp_handler(void *arg) {
+	int ret;
+	int socket_desc, client_desc;
 	
 	// some fields are required to be filled with 0
 	struct sockaddr_in server_addr = {0};
@@ -87,18 +140,12 @@ int main(int argc, char **argv) {
 	// We enable SO_REUSEADDR to quickly restart our server after a crash
 	int reuseaddr_opt = 1;
 	ret = setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt, sizeof(reuseaddr_opt));
-	
 	ERROR_HELPER(ret, "Cannot set SO_REUSEADDR option");
 
 	// bind address to socket
 	ret = bind(socket_desc, (struct sockaddr *)&server_addr, sockaddr_len);
 	ERROR_HELPER(ret, "Cannot bind address to socket");
-	if(ret >= 0) {
-		printf("Done! \n");
-	} else {
-		printf("Fail! \n");
-	}
-
+	
 	// start listening
 	ret = listen(socket_desc, MAX_CONN_QUEUE);
 	ERROR_HELPER(ret, "Cannot listen on socket");
@@ -134,15 +181,9 @@ int main(int argc, char **argv) {
 
 	}
 
+}
 
-
-
-
-	/** UDP SERVER
-	* Single thread implementation, if needed I can change it in a multi-thread implemetation.
-	* A error handler is required!
-	**/
-
+void *udp_handler(void *arg) {
 	struct sockaddr_in si_me, udp_client_addr;
 	char buf[UDP_BUFLEN];
 	int udp_socket, res, udp_sockaddr_len = sizeof(udp_client_addr);
@@ -192,45 +233,4 @@ int main(int argc, char **argv) {
 
 	exit(EXIT_SUCCESS); // this will never be executed
 }
-
-
-
-	// not needed here
-	// construct the world
-	// World_init(&world, surface_elevation, surface_texture,  0.5, 0.5, 0.5);
-
-	// // create a vehicle
-	// vehicle=(Vehicle*) malloc(sizeof(Vehicle));
-	// Vehicle_init(vehicle, &world, 0, vehicle_texture);
-
-	// // add it to the world
-	// World_addVehicle(&world, vehicle);
-
-
-
-	// // initialize GL
-	// glutInit(&argc, argv);
-	// glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-	// glutCreateWindow("main");
-
-	// // set the callbacks
-	// glutDisplayFunc(display);
-	// glutIdleFunc(idle);
-	// glutSpecialFunc(specialInput);
-	// glutKeyboardFunc(keyPressed);
-	// glutReshapeFunc(reshape);
-
-	// WorldViewer_init(&viewer, &world, vehicle);
-
-
-	// // run the main GL loop
-	// glutMainLoop();
-
-	// // check out the images not needed anymore
-	// Image_free(vehicle_texture);
-	// Image_free(surface_texture);
-	// Image_free(surface_elevation);
-
-	// // cleanup
-	// World_destroy(&world);
 
