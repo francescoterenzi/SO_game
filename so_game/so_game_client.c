@@ -10,6 +10,7 @@
 #include "world.h"
 #include "vehicle.h"
 #include "world_viewer.h"
+#include "common.h"
 
 int window;
 WorldViewer viewer;
@@ -114,6 +115,31 @@ int main(int argc, char **argv) {
   Image* map_elevation;
   Image* map_texture;
   Image* my_texture_from_server;
+  
+  
+  /** Connection to the server **/
+    int ret;
+
+	// variables for handling a socket
+	int socket_desc;
+	struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
+
+	// create a socket
+	socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+	ERROR_HELPER(socket_desc, "Could not create socket");
+
+	// set up parameters for the connection
+	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
+	server_addr.sin_family      = AF_INET;
+	server_addr.sin_port        = htons(SERVER_PORT); // network byte order!
+
+	// initiate a connection on the socket
+	ret = connect(socket_desc, (struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
+	ERROR_HELPER(ret, "Could not create connection");
+
+	if (DEBUG) fprintf(stderr, "Connection established!\n");  
+  /**--------------------------**/
+
 
   // construct the world
   World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);

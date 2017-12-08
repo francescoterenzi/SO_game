@@ -11,10 +11,6 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#define SERVER_PORT 3000
-#define UDP_BUFLEN 512
-#define  MAX_CONN_QUEUE 20
-
 #include "image.h"
 #include "surface.h"
 #include "world.h"
@@ -25,6 +21,10 @@
 
 World world;
 int id;
+
+typedef struct thread_args {
+	int id;
+} thread_args;
 
 void *client_handler(void *arg){
 	return NULL;
@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
 
 	// initialize socket for listening
 	socket_desc = socket(AF_INET, SOCK_STREAM, 0);
-	//ERROR_HELPER(socket_desc, "Could not create socket");
+	ERROR_HELPER(socket_desc, "Could not create socket");
 
 	server_addr.sin_addr.s_addr = INADDR_ANY; // we want to accept connections from any interface
 	server_addr.sin_family = AF_INET;
@@ -88,11 +88,11 @@ int main(int argc, char **argv) {
 	int reuseaddr_opt = 1;
 	ret = setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt, sizeof(reuseaddr_opt));
 	
-	//ERROR_HELPER(ret, "Cannot set SO_REUSEADDR option");
+	ERROR_HELPER(ret, "Cannot set SO_REUSEADDR option");
 
 	// bind address to socket
 	ret = bind(socket_desc, (struct sockaddr *)&server_addr, sockaddr_len);
-	//ERROR_HELPER(ret, "Cannot bind address to socket");
+	ERROR_HELPER(ret, "Cannot bind address to socket");
 	if(ret >= 0) {
 		printf("Done! \n");
 	} else {
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
 
 	// start listening
 	ret = listen(socket_desc, MAX_CONN_QUEUE);
-	//ERROR_HELPER(ret, "Cannot listen on socket");
+	ERROR_HELPER(ret, "Cannot listen on socket");
 
 	// we allocate client_addr dynamically and initialize it to zero
 	struct sockaddr_in *client_addr = calloc(1, sizeof(struct sockaddr_in));
@@ -113,23 +113,30 @@ int main(int argc, char **argv) {
 		client_desc = accept(socket_desc, (struct sockaddr *)client_addr, (socklen_t *)&sockaddr_len);
 		if (client_desc == -1 && errno == EINTR)
 			continue; // check for interruption by signals
-		//ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
+		ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
 
-		//if (DEBUG)
-			//fprintf(stderr, "Incoming connection accepted...\n");
+		if (DEBUG)
+			fprintf(stderr, "Incoming connection accepted...\n");
 
 		pthread_t thread;
+		thread_args* args = (thread_args*)malloc(sizeof(thread_args));
+		args->id = id; //here I set the client id
+		id = id + 1;
+		
+		ret = pthread_create(&thread, NULL, client_handler, (void*)args);
+		PTHREAD_ERROR_HELPER(ret, "Could not create a new thread");
 
-		ret = pthread_create(&thread, NULL, client_handler, NULL);
-		//PTHREAD_ERROR_HELPER(ret, "Could not create a new thread");
-
-		//if (DEBUG)
-			//fprintf(stderr, "New thread created to handle the request!\n");
+		if (DEBUG)
+			fprintf(stderr, "New thread created to handle the request!\n");
 
 		ret = pthread_detach(thread); // I won't phtread_join() on this thread
-		//PTHREAD_ERROR_HELPER(ret, "Could not detach the thread");
+	    PTHREAD_ERROR_HELPER(ret, "Could not detach the thread");
 
 	}
+
+
+
+
 
 	/** UDP SERVER
 	* Single thread implementation, if needed I can change it in a multi-thread implemetation.
