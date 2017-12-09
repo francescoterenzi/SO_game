@@ -4,6 +4,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
+#include <arpa/inet.h>  // htons() and inet_addr()
+#include <netinet/in.h> // struct sockaddr_in
+#include <sys/socket.h>
+#include <stdlib.h>
 
 #include "image.h"
 #include "surface.h"
@@ -11,11 +16,14 @@
 #include "vehicle.h"
 #include "world_viewer.h"
 #include "common.h"
+#include "so_game_protocol.h"
+#include "common.h"
 
 int window;
 WorldViewer viewer;
 World world;
 Vehicle* vehicle; // The vehicle
+ 
 
 void keyPressed(unsigned char key, int x, int y){
 	switch(key){ 
@@ -104,7 +112,7 @@ int main(int argc, char **argv) {
 
 	Image* my_texture_for_server;
 	// todo: connect to the server
-	//   -get ad id
+	//   -get an id
 	//   -send your texture to the server (so that all can see you)
 	//   -get an elevation map
 	//   -get the texture of the surface
@@ -114,7 +122,41 @@ int main(int argc, char **argv) {
 	Image* map_elevation;
 	Image* map_texture;
 	Image* my_texture_from_server;
-
+	
+	// get an id
+	PacketHeader* id_header = (PacketHeader*)malloc(sizeof(PacketHeader));
+	id_header->type = GetId;
+	id_header->size = sizeof(id_header);
+	
+	IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
+	id_packet->header = (*id_header);
+	id_packet->id = -1;
+	
+	my_id = -1/** id received from server**/ ;
+	
+	// get an elevation map
+	PacketHeader* elevation_header = (PacketHeader*)malloc(sizeof(PacketHeader));
+	elevation_header->type = GetElevation;
+	elevation_header->size = sizeof(elevation_header);
+	
+	// get the texture of the surface
+	PacketHeader* surface_header = (PacketHeader*)malloc(sizeof(PacketHeader));
+	surface_header->type = GetTexture;
+	surface_header->size = sizeof(surface_header);
+	
+	// send your texture to the server (so that all can see you)
+	PacketHeader* image_header = (PacketHeader*)malloc(sizeof(PacketHeader));
+	image_header->type = PostTexture;
+	image_header->size = sizeof(image_header);
+	
+	ImagePacket* image_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
+	image_packet->header = (*image_header);
+	image_packet->id = my_id;
+	image_packet->image = my_texture_for_server;
+	
+	
+	
+	if (DEBUG) fprintf(stderr, "size:%d \n type:%d", header->size , header->type);  
 
 	/** Connection to the server **/
 	int ret;
@@ -138,6 +180,7 @@ int main(int argc, char **argv) {
 
 	if (DEBUG) fprintf(stderr, "Connection established!\n");  
 	/**--------------------------**/
+	
 
 
 	// construct the world
