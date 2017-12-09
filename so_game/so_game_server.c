@@ -70,44 +70,6 @@ int main(int argc, char **argv) {
 		printf("Fail! \n");
 	}
 	
-		// not needed here
-	// construct the world
-	// World_init(&world, surface_elevation, surface_texture,  0.5, 0.5, 0.5);
-
-	// // create a vehicle
-	// vehicle=(Vehicle*) malloc(sizeof(Vehicle));
-	// Vehicle_init(vehicle, &world, 0, vehicle_texture);
-
-	// // add it to the world
-	// World_addVehicle(&world, vehicle);
-
-
-
-	// // initialize GL
-	// glutInit(&argc, argv);
-	// glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-	// glutCreateWindow("main");
-
-	// // set the callbacks
-	// glutDisplayFunc(display);
-	// glutIdleFunc(idle);
-	// glutSpecialFunc(specialInput);
-	// glutKeyboardFunc(keyPressed);
-	// glutReshapeFunc(reshape);
-
-	// WorldViewer_init(&viewer, &world, vehicle);
-
-
-	// // run the main GL loop
-	// glutMainLoop();
-
-	// // check out the images not needed anymore
-	// Image_free(vehicle_texture);
-	// Image_free(surface_texture);
-	// Image_free(surface_elevation);
-
-	// // cleanup
-	// World_destroy(&world);
 
 	int ret;
 	pthread_t tcp_thread;
@@ -245,3 +207,44 @@ void *udp_handler(void *arg) {
 	return NULL;
 }
 
+
+/**
+		// not needed here
+	// construct the world
+	// World_init(&world, surface_elevation, surface_texture,  0.5, 0.5, 0.5);
+
+	// // create a vehicle
+	// vehicle=(Vehicle*) malloc(sizeof(Vehicle));
+	// Vehicle_init(vehicle, &world, 0, vehicle_texture);
+
+	// // add it to the world
+	// World_addVehicle(&world, vehicle);
+
+
+
+	// // initialize GL
+	// glutInit(&argc, argv);
+	// glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+	// glutCreateWindow("main");
+
+	// // set the callbacks
+	// glutDisplayFunc(display);
+	// glutIdleFunc(idle);
+	// glutSpecialFunc(specialInput);
+	// glutKeyboardFunc(keyPressed);
+	// glutReshapeFunc(reshape);
+
+	// WorldViewer_init(&viewer, &world, vehicle);
+
+
+	// // run the main GL loop
+	// glutMainLoop();
+
+	// // check out the images not needed anymore
+	// Image_free(vehicle_texture);
+	// Image_free(surface_texture);
+	// Image_free(surface_elevation);
+
+	// // cleanup
+	// World_destroy(&world);
+**/
