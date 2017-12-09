@@ -96,6 +96,32 @@ void idle(void) {
 	vehicle->rotational_force_update *= 0.7;
 }
 
+int connectToServer(){
+	/** Connection to the server **/
+	int ret;
+
+	// variables for handling a socket
+	int socket_desc;
+	struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
+
+	// create a socket
+	socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+	ERROR_HELPER(socket_desc, "Could not create socket");
+
+	// set up parameters for the connection
+	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
+	server_addr.sin_family      = AF_INET;
+	server_addr.sin_port        = htons(SERVER_PORT); // network byte order!
+
+	// initiate a connection on the socket
+	ret = connect(socket_desc, (struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
+	ERROR_HELPER(ret, "Could not create connection");
+
+	if (DEBUG) fprintf(stderr, "Connection established!\n");  
+	
+	return socket_desc;
+}
+
 int main(int argc, char **argv) {
 	if (argc<3) {
 	printf("usage: %s <server_address> <player texture>\n", argv[1]);
@@ -132,6 +158,10 @@ int main(int argc, char **argv) {
 	id_packet->header = (*id_header);
 	id_packet->id = -1;
 	
+	/** initiate a connection on the socket **/
+	int socket;
+	socket = connectToServer();
+	
 	my_id = -1/** id received from server**/ ;
 	
 	// get an elevation map
@@ -154,32 +184,6 @@ int main(int argc, char **argv) {
 	image_packet->id = my_id;
 	image_packet->image = my_texture_for_server;
 	
-	
-	
-	if (DEBUG) fprintf(stderr, "size:%d \n type:%d", header->size , header->type);  
-
-	/** Connection to the server **/
-	int ret;
-
-	// variables for handling a socket
-	int socket_desc;
-	struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
-
-	// create a socket
-	socket_desc = socket(AF_INET, SOCK_STREAM, 0);
-	ERROR_HELPER(socket_desc, "Could not create socket");
-
-	// set up parameters for the connection
-	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
-	server_addr.sin_family      = AF_INET;
-	server_addr.sin_port        = htons(SERVER_PORT); // network byte order!
-
-	// initiate a connection on the socket
-	ret = connect(socket_desc, (struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
-	ERROR_HELPER(ret, "Could not create connection");
-
-	if (DEBUG) fprintf(stderr, "Connection established!\n");  
-	/**--------------------------**/
 	
 
 
