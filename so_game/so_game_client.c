@@ -17,32 +17,31 @@ WorldViewer viewer;
 World world;
 Vehicle* vehicle; // The vehicle
 
-void keyPressed(unsigned char key, int x, int y)
-{
-	switch(key){
-	case 27:
-	glutDestroyWindow(window);
-	exit(0);
-	case ' ':
-	vehicle->translational_force_update = 0;
-	vehicle->rotational_force_update = 0;
-	break;
-	case '+':
-	viewer.zoom *= 1.1f;
-	break;
-	case '-':
-	viewer.zoom /= 1.1f;
-	break;
-	case '1':
-	viewer.view_type = Inside;
-	break;
-	case '2':
-	viewer.view_type = Outside;
-	break;
-	case '3':
-	viewer.view_type = Global;
-	break;
-	}
+void keyPressed(unsigned char key, int x, int y){
+	switch(key){ 
+	  case 27: 
+		glutDestroyWindow(window); 
+		exit(0); 
+	  case ' ': 
+		vehicle->translational_force_update = 0; 
+		vehicle->rotational_force_update = 0; 
+		break; 
+	  case '+': 
+		viewer.zoom *= 1.1f; 
+		break; 
+	  case '-': 
+		viewer.zoom /= 1.1f; 
+		break; 
+	  case '1': 
+		viewer.view_type = Inside; 
+		break; 
+	  case '2': 
+		viewer.view_type = Outside; 
+		break; 
+	  case '3': 
+		viewer.view_type = Global; 
+		break; 
+	  } 
 }
 
 
@@ -98,9 +97,9 @@ int main(int argc, char **argv) {
 	printf("loading texture image from %s ... ", argv[2]);
 	Image* my_texture = Image_load(argv[2]);
 	if (my_texture) {
-	printf("Done! \n");
+		printf("Done! \n");
 	} else {
-	printf("Fail! \n");
+		printf("Fail! \n");
 	}
 
 	Image* my_texture_for_server;
@@ -145,10 +144,7 @@ int main(int argc, char **argv) {
 	World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
 	vehicle=(Vehicle*) malloc(sizeof(Vehicle));
 	Vehicle_init(&vehicle, &world, my_id, my_texture_from_server);
-	World_addVehicle(&world, v);if (argc<3) {
-	printf("usage: %s <server_address> <player texture>\n", argv[1]);
-	exit(-1);
-	}
+	World_addVehicle(&world, v);
 
 	
 	// spawn a thread that will listen the update messages from
