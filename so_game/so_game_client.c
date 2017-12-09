@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
 	id_packet->header = (*id_header);
 	id_packet->id = -1;
 	
-	/** initiate a connection on the socket **/
+	//initiate a connection on the socket
 	int socket;
 	socket = connectToServer();
 	

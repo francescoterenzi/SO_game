@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
 	
 	printf("Joining udp and tcp sockets..\n");
 	ret = pthread_join(tcp_thread, NULL);
-	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
+	PTHREAD_ERROR_HELPER(ret, "Cannot join the tcp_thread!");
 	ret = pthread_join(udp_thread, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
 	printf("Done!\n");
