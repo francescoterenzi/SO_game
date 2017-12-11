@@ -50,8 +50,10 @@ int Packet_serialize(char* dest, const PacketHeader* h){
   }
 
   PacketHeader* dest_header=(PacketHeader*)dest;
+  /**
   printf("dest ptr     \t%p\n", dest);
   printf("dest_end ptr \t%p\n", dest_end);
+  **/
   dest_header->size=dest_end-dest;
   return dest_header->size;
 }

@@ -184,16 +184,28 @@ void *updater_thread(void *arg) {
     inet_aton(SERVER_ADDRESS , &si_other.sin_addr);	
 
 	while(_arg->run) {
-	
-		char *vup = "hello server";
 		
-		ret = sendto(s, vup, strlen(vup) , 0 , (struct sockaddr *) &si_other, slen);
+		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)malloc(sizeof(VehicleUpdatePacket));
+		PacketHeader v_head;
+		v_head.type = VehicleUpdate;
+
+		vehicle_packet->header = v_head;
+		vehicle_packet->id = 24;
+		vehicle_packet->rotational_force = 9.0;
+		vehicle_packet->translational_force = 9.0;
+		
+		char vehicle_buffer[1000000];
+		int vehicle_buffer_size = Packet_serialize(vehicle_buffer, &vehicle_packet->header);
+		
+		ret = sendto(s, vehicle_buffer, vehicle_buffer_size , 0 , (struct sockaddr *) &si_other, slen);
 		ERROR_HELPER(ret, "Cannot send to server");
 
 		
-		char buf[1024];
-		ret = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *) &si_other, (socklen_t *) &slen);
+        char world_buffer[1000000];
+		ret = recvfrom(s, world_buffer, sizeof(world_buffer), 0, (struct sockaddr *) &si_other, (socklen_t *) &slen);
 		ERROR_HELPER(ret, "Cannot recv from server");
+		
+		WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, sizeof(world_buffer));
 		
 		sleep(2);
 		//usleep(30000);

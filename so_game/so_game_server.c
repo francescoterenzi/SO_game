@@ -258,13 +258,33 @@ void *udp_handler(void *arg) {
 		 * 
 		 */
 		 
-		char temp[1024];
-		
-		res = recvfrom(udp_socket, temp, sizeof(temp), 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
+		char vehicle_buffer[1000000];
+		res = recvfrom(udp_socket, vehicle_buffer, sizeof(vehicle_buffer), 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
 		ERROR_HELPER(res, "Cannot recieve from the client");
+		VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(vehicle_buffer, sizeof(vehicle_buffer));
+		printf("Recived VehicleUpdate\n");
 
-		char *saluto = "Ciao client";
-		sendto(udp_socket, saluto, strlen(saluto) , 0 , (struct sockaddr *) &udp_client_addr, udp_sockaddr_len);
+
+
+		ClientUpdate* update_block = (ClientUpdate*)malloc(sizeof(ClientUpdate));
+		update_block->id = 10;
+		update_block->x = 4.4;
+	    update_block->y = 6.4;
+        update_block->theta = 90;
+  
+		WorldUpdatePacket* world_packet = (WorldUpdatePacket*)malloc(sizeof(WorldUpdatePacket));
+		PacketHeader w_head;
+		w_head.type = WorldUpdate;
+
+		world_packet->header = w_head;
+		world_packet->num_vehicles = 2;
+		world_packet->updates = update_block;
+
+
+		char world_buffer[1000000];
+		int world_buffer_size = Packet_serialize(world_buffer, &world_packet->header);
+
+		sendto(udp_socket, world_buffer, world_buffer_size , 0 , (struct sockaddr *) &udp_client_addr, udp_sockaddr_len);
 		printf("%s send to %s:%d\n", UDP_SOCKET_NAME, inet_ntoa(udp_client_addr.sin_addr), ntohs(udp_client_addr.sin_port));
 	}
 	return NULL;
