@@ -18,12 +18,14 @@
 #include "world_viewer.h"
 #include "common.h"
 #include "linked_list.h"
+#include "so_game_protocol.h"
 
 World world;
 int id;
 
 typedef struct thread_args {
 	int id;
+	int socket_desc;
 } thread_args;
 
 // SOCKET HANDLERS
@@ -32,6 +34,27 @@ void *udp_handler(void *arg);
 
 
 void *client_handler(void *arg){
+	thread_args* args = (thread_args*)arg;
+	int id = args->id; //id to assign to client
+	int socket_desc = args->socket_desc;
+	
+	int ret;
+	
+	char msg_from_client[1024];
+	int msg_len = sizeof(msg_from_client);
+	
+	while( (ret = recv(socket_desc, msg_from_client, msg_len - 1, 0)) < 0 ) {
+		if (errno == EINTR) continue;
+        ERROR_HELPER(-1, "Cannot receive from client");
+	}
+	
+	//if(DEBUG) printf("Message received!\n");
+	
+	//PacketHeader* Packet_deserialize(const char* buffer, int size);
+	PacketHeader* packet_from_client = Packet_deserialize(msg_from_client, msg_len);
+	
+	if(DEBUG) printf("packet size from client: %d\n", packet_from_client->size);
+	
 	return NULL;
 }
 
@@ -130,9 +153,7 @@ void *tcp_handler(void *arg) {
 
 	id = 0;
 
-	while (1) {
-		printf("Waiting for tcp data...\n");
-		
+	while (1) {		
 		
 		/** ASK TO GRISETTI **/
 		// accept incoming connection
@@ -141,19 +162,18 @@ void *tcp_handler(void *arg) {
 			continue; // check for interruption by signals
 		ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
 
-		if (DEBUG)
-			fprintf(stderr, "Incoming connection accepted...\n");
+		//if (DEBUG) fprintf(stderr, "Incoming connection accepted...\n");
 
 		pthread_t thread;
 		thread_args* args = (thread_args*)malloc(sizeof(thread_args));
+		args->socket_desc = client_desc;
 		args->id = id; //here I set the client id
 		id = id + 1;
 		
 		ret = pthread_create(&thread, NULL, client_handler, (void*)args);
 		PTHREAD_ERROR_HELPER(ret, "Could not create a new thread");
 
-		if (DEBUG)
-			fprintf(stderr, "New thread created to handle the request!\n");
+		//if (DEBUG) fprintf(stderr, "New thread created to handle the request!\n");
 
 		ret = pthread_detach(thread); // I won't phtread_join() on this thread
 	    PTHREAD_ERROR_HELPER(ret, "Could not detach the thread");
@@ -198,7 +218,6 @@ void *udp_handler(void *arg) {
 	//Listening on port 3000
 	while(1) {
 
-		printf("Waiting for udp data...\n");
 		res = recvfrom(udp_socket, buf, UDP_BUFLEN, 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
 
 		if(res >= 0) {

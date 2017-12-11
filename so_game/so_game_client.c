@@ -155,6 +155,24 @@ void *updater_thread(void *arg) {
 	return 0;
 }
 
+void sendToServer(int socket_desc, PacketHeader* header){
+	// converts a well formed packet into a string in dest.
+	// returns the written bytes
+	// h is the packet to write
+	//int Packet_serialize(char* dest, const PacketHeader* h);
+	int ret;
+	char to_send[1024];
+	int len =  Packet_serialize(to_send, header);
+
+	while ((ret = send(socket_desc, to_send, len, 0)) < 0){
+        if (errno == EINTR)
+            continue;
+        ERROR_HELPER(-1, "Cannot send msg to the server");
+    }
+    
+    //if(DEBUG) printf("Message sent\n");
+}
+
 int main(int argc, char **argv) {
 	if (argc<3) {
 	printf("usage: %s <server_address> <player texture>\n", argv[1]);
@@ -187,7 +205,7 @@ int main(int argc, char **argv) {
 	// get an id
 	PacketHeader* id_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	id_header->type = GetId;
-	id_header->size = sizeof(id_header);
+	id_header->size = sizeof(*id_header);
 	
 	IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
 	id_packet->header = (*id_header);
@@ -197,30 +215,21 @@ int main(int argc, char **argv) {
 	int socket;
 	socket = connectToServer();
 	
+	sendToServer(socket , id_header);
+	
 	my_id = -1/** id received from server**/ ;
 	
 	
-	/** DA RIVEDERE 
-	// get an elevation map
-	PacketHeader* elevation_header = (PacketHeader*)malloc(sizeof(PacketHeader));
-	elevation_header->type = GetElevation;
-	elevation_header->size = sizeof(elevation_header);
-	
-	// get the texture of the surface
-	PacketHeader* surface_header = (PacketHeader*)malloc(sizeof(PacketHeader));
-	surface_header->type = GetTexture;
-	surface_header->size = sizeof(surface_header);
-	
 	// send your texture to the server (so that all can see you)
+	// server response should assign the surface texture, the surface elevation and the texture to vehicle
 	PacketHeader* image_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	image_header->type = PostTexture;
-	image_header->size = sizeof(image_header);
+	image_header->size = sizeof(*image_header);
 	
 	ImagePacket* image_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
 	image_packet->header = (*image_header);
 	image_packet->id = my_id;
 	image_packet->image = my_texture_for_server;
-	**/
 	
 
 
