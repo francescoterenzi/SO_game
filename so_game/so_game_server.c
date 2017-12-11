@@ -20,44 +20,31 @@
 #include "linked_list.h"
 #include "so_game_protocol.h"
 
-World world;
-int id;
+// MACRO
+#define UDP_SOCKET_NAME "[UDP]"
+#define TCP_SOCKET_NAME "[TCP]"
 
+// STRUTTURE DATI
 typedef struct thread_args {
 	int id;
 	int socket_desc;
 } thread_args;
 
-// SOCKET HANDLERS
+typedef struct Client {
+	int id;	
+} Client;
+
+// GLOBALI
+World world;
+int id;
+Client** clients;
+
+// PROTOTIPI
 void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
+void *tcp_client_handler(void *arg);
 
-
-void *client_handler(void *arg){
-	thread_args* args = (thread_args*)arg;
-	int id = args->id; //id to assign to client
-	int socket_desc = args->socket_desc;
-	
-	int ret;
-	
-	char msg_from_client[1024];
-	int msg_len = sizeof(msg_from_client);
-	
-	while( (ret = recv(socket_desc, msg_from_client, msg_len - 1, 0)) < 0 ) {
-		if (errno == EINTR) continue;
-        ERROR_HELPER(-1, "Cannot receive from client");
-	}
-	
-	//if(DEBUG) printf("Message received!\n");
-	
-	//PacketHeader* Packet_deserialize(const char* buffer, int size);
-	PacketHeader* packet_from_client = Packet_deserialize(msg_from_client, msg_len);
-	
-	if(DEBUG) printf("packet size from client: %d\n", packet_from_client->size);
-	
-	return NULL;
-}
-
+// MAIN
 int main(int argc, char **argv) {
 	if (argc<3) {
 	printf("usage: %s <elevation_image> <texture_image>\n", argv[1]);
@@ -93,26 +80,26 @@ int main(int argc, char **argv) {
 		printf("Fail! \n");
 	}
 	
-
+	// Qui creo un array di clients, dove la size massima è MAX_CONN_QUEUE
+	clients = (Client**) malloc(MAX_CONN_QUEUE*sizeof(Client*));
+	
 	int ret;
 	pthread_t tcp_thread;
 	pthread_t udp_thread;
 	
-	printf("Creating tcp socket..\n");
+	//Creating tcp socket..
 	ret = pthread_create(&tcp_thread, NULL, tcp_handler, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the tcp_thread!");
 	
-	printf("Creating udp socket..\n");
+	//Creating udp socket..
 	ret = pthread_create(&udp_thread, NULL, udp_handler, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the udp_thread!");
-	printf("Done!\n");
 	
-	printf("Joining udp and tcp sockets..\n");
+	//Joining udp and tcp sockets.
 	ret = pthread_join(tcp_thread, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot join the tcp_thread!");
 	ret = pthread_join(udp_thread, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
-	printf("Done!\n");
 	
 	exit(EXIT_SUCCESS); // this will never be executed
 }
@@ -163,14 +150,22 @@ void *tcp_handler(void *arg) {
 		ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
 
 		//if (DEBUG) fprintf(stderr, "Incoming connection accepted...\n");
-
+		
+		
+		// La connessione è stata accettata, ora creo una struct con tutte le informazioni utili per il client e me la salvo
+		// OSS. Il thread_handler si può anche omettere, possiamo ricavare ciò che ci serve grazie al client_id
+		Client* client = (Client*) malloc(sizeof(Client));
+		client->id = id;
+		clients[id] = client;
+		printf("Creato nuovo client: %d\n",id);
+		
 		pthread_t thread;
 		thread_args* args = (thread_args*)malloc(sizeof(thread_args));
 		args->socket_desc = client_desc;
 		args->id = id; //here I set the client id
 		id = id + 1;
 		
-		ret = pthread_create(&thread, NULL, client_handler, (void*)args);
+		ret = pthread_create(&thread, NULL, tcp_client_handler, (void*)args);
 		PTHREAD_ERROR_HELPER(ret, "Could not create a new thread");
 
 		//if (DEBUG) fprintf(stderr, "New thread created to handle the request!\n");
@@ -184,19 +179,39 @@ void *tcp_handler(void *arg) {
 
 }
 
+void *tcp_client_handler(void *arg){
+	thread_args* args = (thread_args*)arg;
+	//int id = args->id;
+	int socket_desc = args->socket_desc;
+	
+	int ret;
+	
+	char msg_from_client[1024];
+	int msg_len = sizeof(msg_from_client);
+	
+	while( (ret = recv(socket_desc, msg_from_client, msg_len - 1, 0)) < 0 ) {
+		if (errno == EINTR) continue;
+        ERROR_HELPER(-1, "Cannot receive from client");
+	}
+	
+	//if(DEBUG) printf("Message received!\n");
+	
+	//PacketHeader* Packet_deserialize(const char* buffer, int size);
+	PacketHeader* packet_from_client = Packet_deserialize(msg_from_client, msg_len);
+	
+	if(DEBUG) printf("%s packet size from client: %d\n", TCP_SOCKET_NAME, packet_from_client->size);
+	
+	return NULL;
+}
+
 void *udp_handler(void *arg) {
+	
 	struct sockaddr_in si_me, udp_client_addr;
-	char buf[UDP_BUFLEN];
 	int udp_socket, res, udp_sockaddr_len = sizeof(udp_client_addr);
 
 	// create the socket
-	printf("Creating the udp_socket...\n");
 	udp_socket=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if(udp_socket >= 0) {
-		printf("Done! \n");
-	} else {
-		printf("Fail! \n");
-	}
+	ERROR_HELPER(udp_socket, "Could not create the udp_socket");
 
 	// zero the memory
 	memset((char *) &si_me, 0, sizeof(si_me));
@@ -207,28 +222,50 @@ void *udp_handler(void *arg) {
 
 
 	//bind the socket to port
-	printf("Binding the socket to port %d\n", SERVER_PORT);
 	res = bind(udp_socket , (struct sockaddr*)&si_me, sizeof(si_me));
-	if(res >= 0) {
-		printf("Done! \n");
-	} else {
-		printf("Fail! \n");
-	}
+	ERROR_HELPER(udp_socket, "Could not bind the udp_socket");
 
 	//Listening on port 3000
 	while(1) {
+		
+		// udp riceve il pacchetto dal client, aggiorna i suoi dati e lo rimanda
+		/*
+		 * Pacchetto da ricevere: typedef struct {
+									  PacketHeader header;
+									  int id;
+									  float rotational_force;
+									  float translational_force;
+									}VehicleUpdatePacket;
+		 * 
+		 * Pacchetto da inviare: typedef struct {
+									  PacketHeader header;
+									  int num_vehicles;
+									  ClientUpdate* updates;
+									}WorldUpdatePacket;
+		 * 
+		 * dove ClientUpdate: typedef struct {
+								int id;
+								float x;
+								float y;
+								float theta;
+							} ClientUpdate;
+		 * 
+		 * dove PacketHeader: typedef struct {
+								  Type type;
+								  int size;
+								} PacketHeader;
+		 *
+		 * 
+		 */
+		 
+		char temp[1024];
+		
+		res = recvfrom(udp_socket, temp, sizeof(temp), 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
+		ERROR_HELPER(res, "Cannot recieve from the client");
 
-		res = recvfrom(udp_socket, buf, UDP_BUFLEN, 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
-
-		if(res >= 0) {
-			// it should be in this form <timestamp, translational acceleration, rotational acceleration>
-			printf("Received packet from %s:%d\n", inet_ntoa(udp_client_addr.sin_addr), ntohs(udp_client_addr.sin_port));
-			printf("Data: %s\n" , buf);
-		}
-		else {
-			printf("recv failed\n");
-			continue;
-		}
+		char *saluto = "Ciao client";
+		sendto(udp_socket, saluto, strlen(saluto) , 0 , (struct sockaddr *) &udp_client_addr, udp_sockaddr_len);
+		printf("%s send to %s:%d\n", UDP_SOCKET_NAME, inet_ntoa(udp_client_addr.sin_addr), ntohs(udp_client_addr.sin_port));
 	}
 	return NULL;
 }

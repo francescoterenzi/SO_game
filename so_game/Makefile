@@ -5,10 +5,8 @@ AR=ar
 
 
 BINS=libso_game.a\
-	 so_game\
      so_game_server\
-     so_game_client\
-     test_packets_serialization 
+     so_game_client
 
 OBJS = vec3.o\
        linked_list.o\
@@ -40,18 +38,12 @@ all:	$(BINS)
 libso_game.a: $(OBJS) 
 	$(AR) -rcs $@ $^
 	$(RM) $(OBJS)
-
-so_game: so_game.c libso_game.a 
-	$(CC) $(CCOPTS) -Ofast -o $@ $^ $(LIBS)
 	
 so_game_server: ./so_game_server.c libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o $@ $^ $(LIBS)
 
 so_game_client: ./so_game_client.c libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o $@ $^ $(LIBS)
-
-test_packets_serialization: test_packets_serialization.c libso_game.a  
-	$(CC) $(CCOPTS) -Ofast -o $@ $^  $(LIBS)
 
 clean:
 	rm -rf *.o *~  $(BINS)
