@@ -75,9 +75,11 @@ int main(int argc, char **argv) {
 	pthread_t tcp_thread;
 	pthread_t udp_thread;
 	
-	printf("Creating udp and tcp sockets..\n");
+	printf("Creating tcp socket..\n");
 	ret = pthread_create(&tcp_thread, NULL, tcp_handler, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the tcp_thread!");
+	
+	printf("Creating udp socket..\n");
 	ret = pthread_create(&udp_thread, NULL, udp_handler, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the udp_thread!");
 	printf("Done!\n");
@@ -93,6 +95,7 @@ int main(int argc, char **argv) {
 }
 
 void *tcp_handler(void *arg) {
+	
 	int ret;
 	int socket_desc, client_desc;
 	
@@ -128,6 +131,10 @@ void *tcp_handler(void *arg) {
 	id = 0;
 
 	while (1) {
+		printf("Waiting for tcp data...\n");
+		
+		
+		/** ASK TO GRISETTI **/
 		// accept incoming connection
 		client_desc = accept(socket_desc, (struct sockaddr *)client_addr, (socklen_t *)&sockaddr_len);
 		if (client_desc == -1 && errno == EINTR)
@@ -191,7 +198,7 @@ void *udp_handler(void *arg) {
 	//Listening on port 3000
 	while(1) {
 
-		printf("Waiting for data...\n");
+		printf("Waiting for udp data...\n");
 		res = recvfrom(udp_socket, buf, UDP_BUFLEN, 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
 
 		if(res >= 0) {
