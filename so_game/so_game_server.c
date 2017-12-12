@@ -198,7 +198,7 @@ void *tcp_client_handler(void *arg){
 	int socket_desc = args->socket_desc;
 
 	char msg[BUFLEN];
-	int buf_len = sizeof(msg);
+	size_t buf_len = sizeof(msg);
 	
 	receiveFromClient(socket_desc , msg , buf_len);
 	

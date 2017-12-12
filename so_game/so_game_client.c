@@ -34,7 +34,7 @@ typedef struct {
 int connectToServer(void);
 void *updater_thread(void *arg);
 void sendToServer(int socket_desc, PacketHeader* header);
-void receiveFromServer(int socket_desc, char* msg , int buf_len);
+size_t receiveFromServer(int socket_desc, char* msg , int buf_len);
 
 
 /**  TO REMEMBER	
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 	int socket;
 	socket = connectToServer(); //initiate a connection on the socket
 	char buf[BUFLEN];
-	int buf_len = sizeof(buf);
+	size_t buf_len = sizeof(buf);
 	
 	sendToServer(socket , &id_packet->header);	// Send id request
 	
@@ -313,13 +313,17 @@ void sendToServer(int socket_desc, PacketHeader* packet){
     //if(DEBUG) printf("Message sent\n");
 }
 
-void receiveFromServer(int socket_desc, char* msg , int buf_len){
+
+size_t receiveFromServer(int socket_desc, char* msg , int buf_len){
 	int ret;
 	
 	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
 		if (errno == EINTR) continue;
         ERROR_HELPER(-1, "Cannot receive from server");
 	}
+	msg[buf_len] = '\0';
+	
+	return ret; //number of bytes received
 }
 
 /** SE SERVE LA RIMETTIAMO SU
