@@ -90,6 +90,7 @@ int main(int argc, char **argv) {
 	receiveFromServer(socket , buf , buf_len);
 	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, buf_len); // Id received!
 	my_id = received_packet->id;
+	
 	if(DEBUG) printf("Id received : %d\n", my_id);
 	
 	

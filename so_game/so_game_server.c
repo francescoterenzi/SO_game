@@ -241,34 +241,6 @@ void *udp_handler(void *arg) {
 	while(1) {
 		
 		// udp riceve il pacchetto dal client, aggiorna i suoi dati e lo rimanda
-		/*
-		 * Pacchetto da ricevere: typedef struct {
-									  PacketHeader header;
-									  int id;
-									  float rotational_force;
-									  float translational_force;
-									}VehicleUpdatePacket;
-		 * 
-		 * Pacchetto da inviare: typedef struct {
-									  PacketHeader header;
-									  int num_vehicles;
-									  ClientUpdate* updates;
-									}WorldUpdatePacket;
-		 * 
-		 * dove ClientUpdate: typedef struct {
-								int id;
-								float x;
-								float y;
-								float theta;
-							} ClientUpdate;
-		 * 
-		 * dove PacketHeader: typedef struct {
-								  Type type;
-								  int size;
-								} PacketHeader;
-		 *
-		 * 
-		 */
 		 
 		char vehicle_buffer[BUFLEN];
 		res = recvfrom(udp_socket, vehicle_buffer, sizeof(vehicle_buffer), 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
