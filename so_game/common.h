@@ -15,9 +15,12 @@
 /* Configuration parameters */
 #define DEBUG           1   // display debug messages
 #define MAX_CONN_QUEUE  20   // max number of connections the server can queue
-#define SERVER_ADDRESS  "127.0.0.1"
-#define UDP_BUFLEN 512
 #define SERVER_PORT     3000
-#define SERVER_COMMAND  "QUIT"
+#define BUFLEN          1000000
+#define UDP_BUFLEN      512
+
+#define SERVER_ADDRESS    "127.0.0.1"
+#define UDP_SOCKET_NAME   "[UDP]"
+#define TCP_SOCKET_NAME   "[TCP]"
 
 #endif

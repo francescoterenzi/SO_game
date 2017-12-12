@@ -20,11 +20,7 @@
 #include "so_game_protocol.h"
 #include "common.h"
 
-// MACRO
-#define BUFLEN 1024
-#define UDP_SOCKET_NAME "[UDP]"
 
-// GLOBALI
 int window;
 WorldViewer viewer;
 World world;
@@ -75,7 +71,6 @@ int main(int argc, char **argv) {
 	// get an id
 	PacketHeader* id_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	id_header->type = GetId;
-	id_header->size = sizeof(*id_header);
 	
 	IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
 	id_packet->header = (*id_header);

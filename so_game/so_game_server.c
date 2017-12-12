@@ -20,11 +20,15 @@
 #include "linked_list.h"
 #include "so_game_protocol.h"
 
-// MACRO
-#define UDP_SOCKET_NAME "[UDP]"
-#define TCP_SOCKET_NAME "[TCP]"
 
-// STRUTTURE DATI
+World world;
+int id;
+Client** clients;
+
+void *tcp_handler(void *arg);
+void *udp_handler(void *arg);
+void *tcp_client_handler(void *arg);
+
 typedef struct thread_args {
 	int id;
 	int socket_desc;
@@ -34,17 +38,8 @@ typedef struct Client {
 	int id;	
 } Client;
 
-// GLOBALI
-World world;
-int id;
-Client** clients;
 
-// PROTOTIPI
-void *tcp_handler(void *arg);
-void *udp_handler(void *arg);
-void *tcp_client_handler(void *arg);
 
-// MAIN
 int main(int argc, char **argv) {
 	if (argc<3) {
 	printf("usage: %s <elevation_image> <texture_image>\n", argv[1]);
@@ -185,7 +180,7 @@ void *tcp_client_handler(void *arg){
 	
 	int ret;
 	
-	char msg_from_client[1024];
+	char msg_from_client[BUFLEN];
 	int msg_len = sizeof(msg_from_client);
 	
 	while( (ret = recv(socket_desc, msg_from_client, msg_len - 1, 0)) < 0 ) {
@@ -257,7 +252,7 @@ void *udp_handler(void *arg) {
 		 * 
 		 */
 		 
-		char vehicle_buffer[1000000];
+		char vehicle_buffer[BUFLEN];
 		res = recvfrom(udp_socket, vehicle_buffer, sizeof(vehicle_buffer), 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
 		ERROR_HELPER(res, "Cannot recieve from the client");
 		VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(vehicle_buffer, sizeof(vehicle_buffer));
@@ -280,7 +275,7 @@ void *udp_handler(void *arg) {
 		world_packet->updates = update_block;
 
 
-		char world_buffer[1000000];
+		char world_buffer[BUFLEN];
 		int world_buffer_size = Packet_serialize(world_buffer, &world_packet->header);
 
 		sendto(udp_socket, world_buffer, world_buffer_size , 0 , (struct sockaddr *) &udp_client_addr, udp_sockaddr_len);
