@@ -38,7 +38,7 @@ typedef struct {
 // PROTOTIPI
 int connectToServer(void);
 void *updater_thread(void *arg);
-void sendToServer(int socket_desc, PacketHeader* header);
+void sendToServer(int socket_desc, IdPacket* header);
 
 // MAIN
 int main(int argc, char **argv) {
@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
 	int socket;
 	socket = connectToServer();
 	
-	sendToServer(socket , id_header);
+	sendToServer(socket , id_packet);
 	
 	my_id = -1/** id received from server**/ ;
 	
@@ -213,14 +213,14 @@ void *updater_thread(void *arg) {
 	return 0;
 }
 
-void sendToServer(int socket_desc, PacketHeader* header){
+void sendToServer(int socket_desc, IdPacket* packet){
 	// converts a well formed packet into a string in dest.
 	// returns the written bytes
 	// h is the packet to write
 	//int Packet_serialize(char* dest, const PacketHeader* h);
 	int ret;
-	char to_send[1024];
-	int len =  Packet_serialize(to_send, header);
+	char to_send[1000000];
+	int len =  Packet_serialize(to_send, &packet->header);
 
 	while ((ret = send(socket_desc, to_send, len, 0)) < 0){
         if (errno == EINTR)
