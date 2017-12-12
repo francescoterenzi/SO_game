@@ -200,7 +200,7 @@ void *tcp_client_handler(void *arg){
     int ret;
 	char msg[BUFLEN];
 	size_t buf_len = sizeof(msg);
-	memset(msg, 0, buf_len);
+	memset(msg , '\0', sizeof(char)*BUFLEN);
 
 	
 	ret = receiveFromClient(socket_desc , msg , buf_len);
@@ -214,14 +214,14 @@ void *tcp_client_handler(void *arg){
 	to_send->header = packet_from_client->header;
 	to_send->id = id;
 	
-	memset(msg, 0, buf_len);
+	memset(msg , '\0', sizeof(char)*BUFLEN);
 	if(DEBUG) printf("%s Assignment id to the client: %d\n", TCP_SOCKET_NAME, id);
 	
 	sendToClient(socket_desc, msg , &to_send->header); // Send to client the id assigned
 	
 	
   // SEND WORLD MAP TO THE CLIENT
-	memset(msg, 0, buf_len);
+	memset(msg , '\0', sizeof(char)*BUFLEN);
 	ret = receiveFromClient(socket_desc, msg , buf_len); //client requested the world map
 	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(msg , ret);
 	
@@ -230,7 +230,7 @@ void *tcp_client_handler(void *arg){
 	
 	
 	// send surface texture
-	memset(msg, 0, buf_len);
+	memset(msg , '\0', sizeof(char)*BUFLEN);
 	PacketHeader* texture_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	texture_header->type = PostTexture;
 	
@@ -245,7 +245,7 @@ void *tcp_client_handler(void *arg){
 	
 	
 	// send surface elevation
-	memset(msg, 0, buf_len);
+	memset(msg , '\0', sizeof(char)*BUFLEN);
 	PacketHeader* elevation_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	elevation_header->type = PostElevation;
 	
@@ -260,7 +260,7 @@ void *tcp_client_handler(void *arg){
 	
 	
 	// send vehicle texture of the client client_id
-	memset(msg, 0, buf_len);
+	memset(msg , '\0', sizeof(char)*BUFLEN);
 	PacketHeader* vehicle_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	vehicle_header->type = PostTexture;
 	

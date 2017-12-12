@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 	
 	
 	// GET SURFACE TEXTURE
-	memset(buf , 0, buf_len);
+	memset(buf , '\0', sizeof(char)*BUFLEN);
 	
     ret = receiveFromServer(socket , buf , buf_len);  
 	
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
     
     
     // GET ELEVATION MAP    
-    memset(buf , 0, buf_len);
+    memset(buf , '\0', sizeof(char)*BUFLEN);
     ret = receiveFromServer(socket , buf , buf_len);  
 	
 	ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
     
     
     // GET VEHICLE TEXTURE
-	memset(buf , 0, buf_len);
+	memset(buf , '\0', sizeof(char)*BUFLEN);
     ret = receiveFromServer(socket , buf , buf_len);  
 	
 	ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
