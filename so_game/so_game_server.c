@@ -24,6 +24,7 @@
 void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
+void sendToClient(int socket_desc, char* to_send, IdPacket* packet);
 
 typedef struct thread_args {
 	int id;
@@ -37,6 +38,7 @@ typedef struct Client {
 World world;
 int id;
 Client** clients;
+
 
 
 int main(int argc, char **argv) {
@@ -97,6 +99,9 @@ int main(int argc, char **argv) {
 	
 	exit(EXIT_SUCCESS); // this will never be executed
 }
+
+
+
 
 void *tcp_handler(void *arg) {
 	
@@ -172,17 +177,21 @@ void *tcp_handler(void *arg) {
 
 }
 
+
+
+
+
 void *tcp_client_handler(void *arg){
 	thread_args* args = (thread_args*)arg;
-	//int id = args->id;
+	int id = args->id;
 	int socket_desc = args->socket_desc;
 	
 	int ret;
 	
-	char msg_from_client[BUFLEN];
-	int msg_len = sizeof(msg_from_client);
+	char msg[BUFLEN];
+	int buf_len = sizeof(msg);
 	
-	while( (ret = recv(socket_desc, msg_from_client, msg_len - 1, 0)) < 0 ) {
+	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
 		if (errno == EINTR) continue;
         ERROR_HELPER(-1, "Cannot receive from client");
 	}
@@ -190,12 +199,22 @@ void *tcp_client_handler(void *arg){
 	//if(DEBUG) printf("Message received!\n");
 	
 	//PacketHeader* Packet_deserialize(const char* buffer, int size);
-	PacketHeader* packet_from_client = Packet_deserialize(msg_from_client, msg_len);
+	IdPacket* packet_from_client = (IdPacket*)Packet_deserialize(msg , buf_len);
 	
-	if(DEBUG) printf("%s packet size from client: %d\n", TCP_SOCKET_NAME, packet_from_client->size);
+	//if(DEBUG) printf("%s packet size from client: %d, client id: %d\n", TCP_SOCKET_NAME, packet_from_client->header.size, packet_from_client->id);
 	
-	return NULL;
+	IdPacket* to_send = (IdPacket*)malloc(sizeof(IdPacket));
+	to_send->header = packet_from_client->header;
+	to_send->id = id;
+	
+	memset(msg, 0, buf_len);
+	if(DEBUG) printf("%s Assignment id to the client: %d\n", TCP_SOCKET_NAME, id);
+	
+	sendToClient(socket_desc, msg , to_send); // Send to client the id assigned
 }
+
+
+
 
 void *udp_handler(void *arg) {
 	
@@ -280,6 +299,27 @@ void *udp_handler(void *arg) {
 		printf("%s send to %s:%d\n", UDP_SOCKET_NAME, inet_ntoa(udp_client_addr.sin_addr), ntohs(udp_client_addr.sin_port));
 	}
 	return NULL;
+}
+
+
+
+
+
+void sendToClient(int socket_desc, char* to_send , IdPacket* packet){
+	// converts a well formed packet into a string in dest.
+	// returns the written bytes
+	// h is the packet to write
+	//int Packet_serialize(char* dest, const PacketHeader* h);
+	int ret;
+	int len =  Packet_serialize(to_send, &packet->header);
+
+	while ((ret = send(socket_desc, to_send, len, 0)) < 0){
+        if (errno == EINTR)
+            continue;
+        ERROR_HELPER(-1, "Cannot send msg to the server");
+    }
+    
+    //if(DEBUG) printf("Message sent\n");
 }
 
 

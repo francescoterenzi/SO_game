@@ -34,6 +34,7 @@ typedef struct {
 int connectToServer(void);
 void *updater_thread(void *arg);
 void sendToServer(int socket_desc, IdPacket* header);
+void receiveFromServer(int socket_desc, char* msg , int buf_len);
 
 
 int main(int argc, char **argv) {
@@ -68,7 +69,7 @@ int main(int argc, char **argv) {
 	Image* my_texture_from_server; //vehicle texture (maybe)
 	**/
 	
-	// get an id
+	// GET AN ID
 	PacketHeader* id_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	id_header->type = GetId;
 	
@@ -76,13 +77,22 @@ int main(int argc, char **argv) {
 	id_packet->header = (*id_header);
 	id_packet->id = my_id;
 	
-	//initiate a connection on the socket
+	
 	int socket;
-	socket = connectToServer();
+	socket = connectToServer(); //initiate a connection on the socket
+	char buf[BUFLEN];
+	int buf_len = sizeof(buf);
 	
 	sendToServer(socket , id_packet);
+	Packet_free(&id_packet->header);
+	free(id_packet);
 	
-	my_id = -1/** id received from server**/ ;
+	receiveFromServer(socket , buf , buf_len);
+	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, buf_len); // Id received!
+	my_id = received_packet->id;
+	if(DEBUG) printf("Id received : %d\n", my_id);
+	
+	
 	
 	
 	// send your texture to the server (so that all can see you)
@@ -222,6 +232,15 @@ void sendToServer(int socket_desc, IdPacket* packet){
     }
     
     //if(DEBUG) printf("Message sent\n");
+}
+
+void receiveFromServer(int socket_desc, char* msg , int buf_len){
+	int ret;
+	
+	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
+		if (errno == EINTR) continue;
+        ERROR_HELPER(-1, "Cannot receive from client");
+	}
 }
 
 /** SE SERVE LA RIMETTIAMO SU
