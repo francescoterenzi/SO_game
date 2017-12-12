@@ -25,7 +25,7 @@ void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
 void sendToClient(int socket_desc, char* to_send, PacketHeader* packet);
-void receiveFromClient(int socket_desc, char* msg , int buf_len);
+size_t receiveFromClient(int socket_desc, char* msg , size_t buf_len);
 
 typedef struct thread_args {
 	int id;
@@ -197,15 +197,18 @@ void *tcp_client_handler(void *arg){
 	int id = args->id;
 	int socket_desc = args->socket_desc;
 
+    int ret;
 	char msg[BUFLEN];
 	size_t buf_len = sizeof(msg);
+	memset(msg, 0, buf_len);
+
 	
-	receiveFromClient(socket_desc , msg , buf_len);
+	ret = receiveFromClient(socket_desc , msg , buf_len);
 	
 	/// if(DEBUG) printf("Message received!\n");
 	
 	/// PacketHeader* Packet_deserialize(const char* buffer, int size);
-	IdPacket* packet_from_client = (IdPacket*)Packet_deserialize(msg , buf_len);
+	IdPacket* packet_from_client = (IdPacket*)Packet_deserialize(msg , ret);
 	
 	IdPacket* to_send = (IdPacket*)malloc(sizeof(IdPacket));
 	to_send->header = packet_from_client->header;
@@ -217,16 +220,17 @@ void *tcp_client_handler(void *arg){
 	sendToClient(socket_desc, msg , &to_send->header); // Send to client the id assigned
 	
 	
-	// SEND WORLD MAP TO THE CLIENT
+  // SEND WORLD MAP TO THE CLIENT
 	memset(msg, 0, buf_len);
-	receiveFromClient(socket_desc, msg , buf_len); //client requested the world map
-	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(msg , buf_len);
+	ret = receiveFromClient(socket_desc, msg , buf_len); //client requested the world map
+	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(msg , ret);
 	
 	if(DEBUG) printf("Message type : %d\n", (image_packet->header).type); 
 	int client_id = image_packet->id; /// serve se dovrò fare un singolo thread per tutti i client
 	
 	
 	// send surface texture
+	memset(msg, 0, buf_len);
 	PacketHeader* texture_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	texture_header->type = PostTexture;
 	
@@ -239,7 +243,9 @@ void *tcp_client_handler(void *arg){
 	Packet_free(texture_header);
 	free(texture_packet);
 	
+	
 	// send surface elevation
+	memset(msg, 0, buf_len);
 	PacketHeader* elevation_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	elevation_header->type = PostElevation;
 	
@@ -254,6 +260,7 @@ void *tcp_client_handler(void *arg){
 	
 	
 	// send vehicle texture of the client client_id
+	memset(msg, 0, buf_len);
 	PacketHeader* vehicle_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	vehicle_header->type = PostTexture;
 	
@@ -336,13 +343,15 @@ void *udp_handler(void *arg) {
 
 
 
-void receiveFromClient(int socket_desc, char* msg , int buf_len){
+size_t receiveFromClient(int socket_desc, char* msg , size_t buf_len){
 	int ret;
 	
 	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
 		if (errno == EINTR) continue;
         ERROR_HELPER(-1, "Cannot receive from client");
 	}
+	msg[ret] = '\0';
+	return ret;
 }
 
 
@@ -354,7 +363,7 @@ void sendToClient(int socket_desc, char* to_send , PacketHeader* packet){
 	int ret;
 	int len =  Packet_serialize(to_send, packet);
 
-	while ((ret = send(socket_desc, to_send, len, 0)) < 0){
+	while ((ret = send(socket_desc, to_send, len , 0)) < 0){
         if (errno == EINTR)
             continue;
         ERROR_HELPER(-1, "Cannot send msg to the server");

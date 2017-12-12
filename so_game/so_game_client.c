@@ -34,7 +34,7 @@ typedef struct {
 int connectToServer(void);
 void *updater_thread(void *arg);
 void sendToServer(int socket_desc, PacketHeader* header);
-size_t receiveFromServer(int socket_desc, char* msg , int buf_len);
+size_t receiveFromServer(int socket_desc, char* msg , size_t buf_len);
 
 
 /**  TO REMEMBER	
@@ -74,6 +74,8 @@ int main(int argc, char **argv) {
 	Image* map_texture;
 	Image* my_texture_from_server; //vehicle texture (maybe)
 	
+	int ret;
+	
 	
 	// GET AN ID
 	PacketHeader* id_header = (PacketHeader*)malloc(sizeof(PacketHeader));
@@ -91,19 +93,18 @@ int main(int argc, char **argv) {
 	
 	sendToServer(socket , &id_packet->header);	// Send id request
 	
-	receiveFromServer(socket , buf , buf_len);  // Receive id response
+	ret = receiveFromServer(socket , buf , buf_len);  // Receive id response
 	
 	Packet_free(&id_packet->header);
 	free(id_packet);
 	
-	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, buf_len); // Id received!
+	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, ret); // Id received!
 	my_id = received_packet->id;
 	
 	free(received_packet);
 	
 	if(DEBUG) printf("Id received : %d\n", my_id);
 	
-	if(DEBUG) sleep(6);
 	
 	// SEND YOUR TEXTURE to the server (so that all can see you)
 	// server response should assign the surface texture, the surface elevation and the texture to vehicle
@@ -126,9 +127,9 @@ int main(int argc, char **argv) {
 	// GET SURFACE TEXTURE
 	memset(buf , 0, buf_len);
 	
-    receiveFromServer(socket , buf , buf_len);  
+    ret = receiveFromServer(socket , buf , buf_len);  
 	
-	ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, buf_len);
+	ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	if( (texture_packet->header).type == PostTexture && texture_packet->id == 0) {
 		if(DEBUG) printf(" OK, surface texture received!\n");
 	} else {
@@ -138,11 +139,13 @@ int main(int argc, char **argv) {
     
     ///if(DEBUG) printf(" map_texture: %s\n", map_texture->data);
     
+    
+    
     // GET ELEVATION MAP    
     memset(buf , 0, buf_len);
-    receiveFromServer(socket , buf , buf_len);  
+    ret = receiveFromServer(socket , buf , buf_len);  
 	
-	ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, buf_len);
+	ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	if( (elevation_packet->header).type == PostElevation && elevation_packet->id == 0) {
 		if(DEBUG) printf(" OK, surface texture received!\n");
 	} else {
@@ -151,11 +154,12 @@ int main(int argc, char **argv) {
 	map_elevation = elevation_packet->image;
     
     
+    
     // GET VEHICLE TEXTURE
 	memset(buf , 0, buf_len);
-    receiveFromServer(socket , buf , buf_len);  
+    ret = receiveFromServer(socket , buf , buf_len);  
 	
-	ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, buf_len);
+	ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	if( (vehicle_packet->header).type == PostTexture && vehicle_packet->id > 0) {
 		if(DEBUG) printf(" OK, surface texture received!\n");
 	} else {
@@ -167,13 +171,8 @@ int main(int argc, char **argv) {
 	
 	
 	
-	///if(DEBUG) printf(" map_texture: %s\n", map_texture->data);
-	///if(DEBUG) printf(" map_elevation: %s\n", map_elevation->data);
-	
-	
-	
-	
-	
+	if(DEBUG) printf(" map_texture: %s\n", map_texture->data);
+	if(DEBUG) printf(" map_elevation: %s\n", map_elevation->data);
 	
 	
 	
@@ -266,8 +265,6 @@ void *updater_thread(void *arg) {
 
 
 
-
-
 int connectToServer(void){
 	int ret;
 
@@ -296,104 +293,26 @@ int connectToServer(void){
 
 
 void sendToServer(int socket_desc, PacketHeader* packet){
-	// converts a well formed packet into a string in dest.
-	// returns the written bytes
-	// h is the packet to write
-	//int Packet_serialize(char* dest, const PacketHeader* h);
 	int ret;
 	char to_send[BUFLEN];
 	int len =  Packet_serialize(to_send, packet);
 
-	while ((ret = send(socket_desc, to_send, len, 0)) < 0){
+	while ((ret = send(socket_desc, to_send, len , 0)) < 0){
         if (errno == EINTR)
             continue;
         ERROR_HELPER(-1, "Cannot send msg to the server");
     }
-    
     //if(DEBUG) printf("Message sent\n");
 }
 
 
-size_t receiveFromServer(int socket_desc, char* msg , int buf_len){
+size_t receiveFromServer(int socket_desc, char* msg , size_t buf_len){
 	int ret;
 	
 	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
 		if (errno == EINTR) continue;
         ERROR_HELPER(-1, "Cannot receive from server");
 	}
-	msg[buf_len] = '\0';
-	
+	msg[ret] = '\0';
 	return ret; //number of bytes received
 }
-
-/** SE SERVE LA RIMETTIAMO SU
-void keyPressed(unsigned char key, int x, int y){
-	switch(key){ 
-	  case 27: 
-		glutDestroyWindow(window); 
-		exit(0); 
-	  case ' ': 
-		vehicle->translational_force_update = 0; 
-		vehicle->rotational_force_update = 0; 
-		break; 
-	  case '+': 
-		viewer.zoom *= 1.1f; 
-		break; 
-	  case '-': 
-		viewer.zoom /= 1.1f; 
-		break; 
-	  case '1': 
-		viewer.view_type = Inside; 
-		break; 
-	  case '2': 
-		viewer.view_type = Outside; 
-		break; 
-	  case '3': 
-		viewer.view_type = Global; 
-		break; 
-	  } 
-}
-
-
-void specialInput(int key, int x, int y) {
-  switch(key){
-  case GLUT_KEY_UP:
-    vehicle->translational_force_update += 0.1;
-    break;
-  case GLUT_KEY_DOWN:
-    vehicle->translational_force_update -= 0.1;
-    break;
-  case GLUT_KEY_LEFT:
-    vehicle->rotational_force_update += 0.1;
-    break;
-  case GLUT_KEY_RIGHT:
-    vehicle->rotational_force_update -= 0.1;
-    break;
-  case GLUT_KEY_PAGE_UP:
-    viewer.camera_z+=0.1;
-    break;
-  case GLUT_KEY_PAGE_DOWN:
-    viewer.camera_z-=0.1;
-    break;
-  }
-}
-
-
-void display(void) {
-  WorldViewer_draw(&viewer);
-}
-
-
-void reshape(int width, int height) {
-	WorldViewer_reshapeViewport(&viewer, width, height);
-}
-
-void idle(void) {
-	World_update(&world);
-	usleep(30000);
-	glutPostRedisplay();
-
-	// decay the commands
-	vehicle->translational_force_update *= 0.999;
-	vehicle->rotational_force_update *= 0.7;
-}**/
