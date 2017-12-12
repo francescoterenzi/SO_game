@@ -33,7 +33,7 @@ typedef struct {
 
 int connectToServer(void);
 void *updater_thread(void *arg);
-void sendToServer(int socket_desc, IdPacket* header);
+void sendToServer(int socket_desc, PacketHeader* header);
 void receiveFromServer(int socket_desc, char* msg , int buf_len);
 
 
@@ -43,8 +43,7 @@ int main(int argc, char **argv) {
 	exit(-1);
 	}
 
-	/** ASK TO GRISETTI **/
-	printf("loading texture image from %s ... ", argv[2]);
+	printf("loading texture image from %s ... \n", argv[2]);
 	Image* my_texture = Image_load(argv[2]);
 	if (my_texture) {
 		printf("Done! \n");
@@ -53,7 +52,8 @@ int main(int argc, char **argv) {
 	}
 	
 	
-	Image* my_texture_for_server = NULL;
+	///Image* my_texture_for_server = NULL; *BHO*
+	
 	// todo: connect to the server
 	//   -get an id
 	//   -send your texture to the server (so that all can see you)
@@ -62,12 +62,10 @@ int main(int argc, char **argv) {
 
 	// these come from the server
 	int my_id = -1;
-	
-	/** VALERIO NON ROMPERE, FINO A QUANDO NON LE USI NON LE VOGLIO COME WARNING NEL MAKE
 	Image* map_elevation;
 	Image* map_texture;
 	Image* my_texture_from_server; //vehicle texture (maybe)
-	**/
+	
 	
 	// GET AN ID
 	PacketHeader* id_header = (PacketHeader*)malloc(sizeof(PacketHeader));
@@ -83,29 +81,29 @@ int main(int argc, char **argv) {
 	char buf[BUFLEN];
 	int buf_len = sizeof(buf);
 	
-	sendToServer(socket , id_packet);
+	sendToServer(socket , &id_packet->header);	
+	receiveFromServer(socket , buf , buf_len);
+	
 	Packet_free(&id_packet->header);
 	free(id_packet);
-	
-	receiveFromServer(socket , buf , buf_len);
 	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, buf_len); // Id received!
 	my_id = received_packet->id;
 	
 	if(DEBUG) printf("Id received : %d\n", my_id);
 	
-	
-	
+	if(DEBUG) sleep(6);
 	
 	// send your texture to the server (so that all can see you)
 	// server response should assign the surface texture, the surface elevation and the texture to vehicle
 	PacketHeader* image_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	image_header->type = PostTexture;
-	image_header->size = sizeof(*image_header);
 	
 	ImagePacket* image_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
 	image_packet->header = (*image_header);
 	image_packet->id = my_id;
-	image_packet->image = my_texture_for_server;
+	image_packet->image = my_texture;
+	
+	sendToServer(socket , &image_packet->header);
 	
 
 	
@@ -217,14 +215,17 @@ void *updater_thread(void *arg) {
 	return 0;
 }
 
-void sendToServer(int socket_desc, IdPacket* packet){
+
+
+
+void sendToServer(int socket_desc, PacketHeader* packet){
 	// converts a well formed packet into a string in dest.
 	// returns the written bytes
 	// h is the packet to write
 	//int Packet_serialize(char* dest, const PacketHeader* h);
 	int ret;
 	char to_send[BUFLEN];
-	int len =  Packet_serialize(to_send, &packet->header);
+	int len =  Packet_serialize(to_send, packet);
 
 	while ((ret = send(socket_desc, to_send, len, 0)) < 0){
         if (errno == EINTR)
@@ -240,7 +241,7 @@ void receiveFromServer(int socket_desc, char* msg , int buf_len){
 	
 	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
 		if (errno == EINTR) continue;
-        ERROR_HELPER(-1, "Cannot receive from client");
+        ERROR_HELPER(-1, "Cannot receive from server");
 	}
 }
 
