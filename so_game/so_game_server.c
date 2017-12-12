@@ -24,11 +24,12 @@
 void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
-void sendToClient(int socket_desc, char* to_send, IdPacket* packet);
+void sendToClient(int socket_desc, char* to_send, PacketHeader* packet);
+void receiveFromClient(int socket_desc, char* msg , int buf_len);
 
 typedef struct thread_args {
 	int id;
-	int socket_desc;
+	int socket_desc;	
 } thread_args;
 
 typedef struct Client {
@@ -36,9 +37,18 @@ typedef struct Client {
 } Client;
 
 World world;
-int id;
+Image* surface_elevation;
+Image* surface_texture;
+Image* vehicle_texture;
 Client** clients;
+int id;
 
+/**  TO REMEMBER	
+ * Alla fine, prima di chiudere il server bisogna rilasciare la memoria
+ *   - void Packet_free(PacketHeader* h);
+ *   - void Image_free(Image* img);
+ *   - free(...) varie
+ * **/
 
 
 int main(int argc, char **argv) {
@@ -47,12 +57,13 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 	char* elevation_filename=argv[1];
+	
 	char* texture_filename=argv[2];
 	char* vehicle_texture_filename="./images/arrow-right.ppm";
 	printf("loading elevation image from %s ... ", elevation_filename);
 
 	// load the images
-	Image* surface_elevation = Image_load(elevation_filename);
+	surface_elevation = Image_load(elevation_filename);
 	if (surface_elevation) {
 		printf("Done! \n");
 	} else {
@@ -61,7 +72,7 @@ int main(int argc, char **argv) {
 
 
 	printf("loading texture image from %s ... ", texture_filename);
-	Image* surface_texture = Image_load(texture_filename);
+	surface_texture = Image_load(texture_filename);
 	if (surface_texture) {
 		printf("Done! \n");
 	} else {
@@ -69,7 +80,7 @@ int main(int argc, char **argv) {
 	}
 
 	printf("loading vehicle texture (default) from %s ... ", vehicle_texture_filename);
-	Image* vehicle_texture = Image_load(vehicle_texture_filename);
+	vehicle_texture = Image_load(vehicle_texture_filename);
 	if (vehicle_texture) {
 		printf("Done! \n");
 	} else {
@@ -97,7 +108,7 @@ int main(int argc, char **argv) {
 	ret = pthread_join(udp_thread, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
 	
-	exit(EXIT_SUCCESS); // this will never be executed
+	exit(EXIT_SUCCESS); 
 }
 
 
@@ -137,7 +148,7 @@ void *tcp_handler(void *arg) {
 	// we allocate client_addr dynamically and initialize it to zero
 	struct sockaddr_in *client_addr = calloc(1, sizeof(struct sockaddr_in));
 
-	id = 0;
+	id = 1;
 
 	while (1) {		
 		
@@ -191,17 +202,12 @@ void *tcp_client_handler(void *arg){
 	char msg[BUFLEN];
 	int buf_len = sizeof(msg);
 	
-	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
-		if (errno == EINTR) continue;
-        ERROR_HELPER(-1, "Cannot receive from client");
-	}
+	receiveFromClient(socket_desc , msg , buf_len);
 	
-	//if(DEBUG) printf("Message received!\n");
+	/// if(DEBUG) printf("Message received!\n");
 	
-	//PacketHeader* Packet_deserialize(const char* buffer, int size);
+	/// PacketHeader* Packet_deserialize(const char* buffer, int size);
 	IdPacket* packet_from_client = (IdPacket*)Packet_deserialize(msg , buf_len);
-	
-	//if(DEBUG) printf("%s packet size from client: %d, client id: %d\n", TCP_SOCKET_NAME, packet_from_client->header.size, packet_from_client->id);
 	
 	IdPacket* to_send = (IdPacket*)malloc(sizeof(IdPacket));
 	to_send->header = packet_from_client->header;
@@ -210,7 +216,56 @@ void *tcp_client_handler(void *arg){
 	memset(msg, 0, buf_len);
 	if(DEBUG) printf("%s Assignment id to the client: %d\n", TCP_SOCKET_NAME, id);
 	
-	sendToClient(socket_desc, msg , to_send); // Send to client the id assigned
+	sendToClient(socket_desc, msg , &to_send->header); // Send to client the id assigned
+	
+	
+	// SEND WORLD MAP TO THE CLIENT
+	memset(msg, 0, buf_len);
+	receiveFromClient(socket_desc, msg , buf_len); //client requested the world map
+	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(msg , buf_len);
+	
+	if(DEBUG) printf("Message type : %d\n", (image_packet->header).type); 
+	int client_id = image_packet->id; /// serve se dovrò fare un singolo thread per tutti i client
+	
+	// send surface texture
+	PacketHeader* texture_header = (PacketHeader*)malloc(sizeof(PacketHeader));
+	texture_header->type = PostTexture;
+	
+	ImagePacket * texture_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
+	texture_packet->header = (*texture_header);
+	texture_packet->id = 0;
+	texture_packet->image = surface_texture;
+	sendToClient(socket_desc , msg , &texture_packet->header);
+	
+	Packet_free(texture_header);
+	free(texture_packet);
+	
+	// send surface elevation
+	PacketHeader* elevation_header = (PacketHeader*)malloc(sizeof(PacketHeader));
+	elevation_header->type = PostElevation;
+	
+	ImagePacket * elevation_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
+	elevation_packet->header = (*elevation_header);
+	elevation_packet->id = 0;
+	elevation_packet->image = surface_elevation;
+	sendToClient(socket_desc , msg , &elevation_packet->header);
+	
+	Packet_free(elevation_header);
+	free(elevation_packet);
+	
+	
+	// send vehicle texture of the client client_id
+	PacketHeader* vehicle_header = (PacketHeader*)malloc(sizeof(PacketHeader));
+	vehicle_header->type = PostTexture;
+	
+	ImagePacket * vehicle_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
+	vehicle_packet->header = (*vehicle_header);
+	vehicle_packet->id = client_id;
+	vehicle_packet->image = vehicle_texture;
+	sendToClient(socket_desc , msg , &vehicle_packet->header);
+	
+	Packet_free(vehicle_header);
+	free(vehicle_packet);
 }
 
 
@@ -275,15 +330,23 @@ void *udp_handler(void *arg) {
 
 
 
-
-
-void sendToClient(int socket_desc, char* to_send , IdPacket* packet){
-	// converts a well formed packet into a string in dest.
-	// returns the written bytes
-	// h is the packet to write
-	//int Packet_serialize(char* dest, const PacketHeader* h);
+void receiveFromClient(int socket_desc, char* msg , int buf_len){
 	int ret;
-	int len =  Packet_serialize(to_send, &packet->header);
+	
+	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
+		if (errno == EINTR) continue;
+        ERROR_HELPER(-1, "Cannot receive from client");
+	}
+}
+
+
+void sendToClient(int socket_desc, char* to_send , PacketHeader* packet){
+	/** converts a well formed packet into a string in dest.
+	    returns the written bytes
+	    h is the packet to write
+	int Packet_serialize(char* dest, const PacketHeader* h);**/
+	int ret;
+	int len =  Packet_serialize(to_send, packet);
 
 	while ((ret = send(socket_desc, to_send, len, 0)) < 0){
         if (errno == EINTR)
