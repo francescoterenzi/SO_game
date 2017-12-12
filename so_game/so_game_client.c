@@ -37,6 +37,14 @@ void sendToServer(int socket_desc, PacketHeader* header);
 void receiveFromServer(int socket_desc, char* msg , int buf_len);
 
 
+/**  TO REMEMBER	
+ * Alla fine, prima di chiudere il server bisogna rilasciare la memoria
+ *   - void Packet_free(PacketHeader* h);
+ *   - void Image_free(Image* img);
+ *   - free(...) varie
+ * **/
+
+
 int main(int argc, char **argv) {
 	if (argc<3) {
 	printf("usage: %s <server_address> <player texture>\n", argv[1]);
@@ -81,19 +89,23 @@ int main(int argc, char **argv) {
 	char buf[BUFLEN];
 	int buf_len = sizeof(buf);
 	
-	sendToServer(socket , &id_packet->header);	
-	receiveFromServer(socket , buf , buf_len);
+	sendToServer(socket , &id_packet->header);	// Send id request
+	
+	receiveFromServer(socket , buf , buf_len);  // Receive id response
 	
 	Packet_free(&id_packet->header);
 	free(id_packet);
+	
 	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, buf_len); // Id received!
 	my_id = received_packet->id;
+	
+	free(received_packet);
 	
 	if(DEBUG) printf("Id received : %d\n", my_id);
 	
 	if(DEBUG) sleep(6);
 	
-	// send your texture to the server (so that all can see you)
+	// SEND YOUR TEXTURE to the server (so that all can see you)
 	// server response should assign the surface texture, the surface elevation and the texture to vehicle
 	PacketHeader* image_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	image_header->type = PostTexture;
@@ -104,16 +116,74 @@ int main(int argc, char **argv) {
 	image_packet->image = my_texture;
 	
 	sendToServer(socket , &image_packet->header);
+	Packet_free(image_header);
+	free(image_packet);
 	
-
+	
+	
+	
+	
+	// GET SURFACE TEXTURE
+	memset(buf , 0, buf_len);
+	
+    receiveFromServer(socket , buf , buf_len);  
+	
+	ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, buf_len);
+	if( (texture_packet->header).type == PostTexture && texture_packet->id == 0) {
+		if(DEBUG) printf(" OK, surface texture received!\n");
+	} else {
+		if(DEBUG) printf(" ERRORE, surface texture not received!\n");
+	}
+    map_texture = texture_packet->image;
+    
+    ///if(DEBUG) printf(" map_texture: %s\n", map_texture->data);
+    
+    // GET ELEVATION MAP    
+    memset(buf , 0, buf_len);
+    receiveFromServer(socket , buf , buf_len);  
+	
+	ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, buf_len);
+	if( (elevation_packet->header).type == PostElevation && elevation_packet->id == 0) {
+		if(DEBUG) printf(" OK, surface texture received!\n");
+	} else {
+		if(DEBUG) printf(" ERRORE, surface texture not received!\n");
+	}
+	map_elevation = elevation_packet->image;
+    
+    
+    // GET VEHICLE TEXTURE
+	memset(buf , 0, buf_len);
+    receiveFromServer(socket , buf , buf_len);  
+	
+	ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, buf_len);
+	if( (vehicle_packet->header).type == PostTexture && vehicle_packet->id > 0) {
+		if(DEBUG) printf(" OK, surface texture received!\n");
+	} else {
+		if(DEBUG) printf(" ERRORE, surface texture not received!\n");
+	}
+	my_texture_from_server = vehicle_packet->image;
+	
+	
+	
+	
+	
+	///if(DEBUG) printf(" map_texture: %s\n", map_texture->data);
+	///if(DEBUG) printf(" map_elevation: %s\n", map_elevation->data);
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	// construct the world
-	/**
 	World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
 	vehicle=(Vehicle*) malloc(sizeof(Vehicle));
 	Vehicle_init(vehicle, &world, my_id, my_texture_from_server);
 	World_addVehicle(&world, vehicle);
-	**/
+	
 	
 	// spawn a thread that will listen the update messages from
 	// the server, and sends back the controls
@@ -144,30 +214,8 @@ int main(int argc, char **argv) {
 	return 0;             
 }
 
-int connectToServer(void){
-	int ret;
 
-	// variables for handling a socket
-	int socket_desc;
-	struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
 
-	// create a socket
-	socket_desc = socket(AF_INET, SOCK_STREAM, 0);
-	ERROR_HELPER(socket_desc, "Could not create socket");
-
-	// set up parameters for the connection
-	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
-	server_addr.sin_family      = AF_INET;
-	server_addr.sin_port        = htons(SERVER_PORT); // network byte order!
-
-	// initiate a connection on the socket
-	ret = connect(socket_desc, (struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
-	ERROR_HELPER(ret, "Could not create connection");
-
-	if (DEBUG) fprintf(stderr, "Connection established!\n");  
-	
-	return socket_desc;
-}
 
 void *updater_thread(void *arg) {
 	
@@ -215,6 +263,35 @@ void *updater_thread(void *arg) {
 	return 0;
 }
 
+
+
+
+
+
+int connectToServer(void){
+	int ret;
+
+	// variables for handling a socket
+	int socket_desc;
+	struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
+
+	// create a socket
+	socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+	ERROR_HELPER(socket_desc, "Could not create socket");
+
+	// set up parameters for the connection
+	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
+	server_addr.sin_family      = AF_INET;
+	server_addr.sin_port        = htons(SERVER_PORT); // network byte order!
+
+	// initiate a connection on the socket
+	ret = connect(socket_desc, (struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
+	ERROR_HELPER(ret, "Could not create connection");
+
+	if (DEBUG) fprintf(stderr, "Connection established!\n");  
+	
+	return socket_desc;
+}
 
 
 
