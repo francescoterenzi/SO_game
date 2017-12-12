@@ -356,10 +356,7 @@ size_t receiveFromClient(int socket_desc, char* msg , size_t buf_len){
 
 
 void sendToClient(int socket_desc, char* to_send , PacketHeader* packet){
-	/** converts a well formed packet into a string in dest.
-	    returns the written bytes
-	    h is the packet to write
-	int Packet_serialize(char* dest, const PacketHeader* h);**/
+	
 	int ret;
 	int len =  Packet_serialize(to_send, packet);
 

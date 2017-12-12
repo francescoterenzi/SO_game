@@ -143,13 +143,13 @@ int main(int argc, char **argv) {
     
     // GET ELEVATION MAP    
     memset(buf , '\0', sizeof(char)*BUFLEN);
-    ret = receiveFromServer(socket , buf , buf_len);  
+    ret = receiveFromServer(socket , buf , buf_len);  // ***SI BLOCCA SU QUESTA RECEIVE*** //
 	
 	ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	if( (elevation_packet->header).type == PostElevation && elevation_packet->id == 0) {
-		if(DEBUG) printf(" OK, surface texture received!\n");
+		if(DEBUG) printf(" OK, elevation map received!\n");
 	} else {
-		if(DEBUG) printf(" ERRORE, surface texture not received!\n");
+		if(DEBUG) printf(" ERRORE, elevation map not received!\n");
 	}
 	map_elevation = elevation_packet->image;
     
@@ -161,9 +161,9 @@ int main(int argc, char **argv) {
 	
 	ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	if( (vehicle_packet->header).type == PostTexture && vehicle_packet->id > 0) {
-		if(DEBUG) printf(" OK, surface texture received!\n");
+		if(DEBUG) printf(" OK, vehicle texture received!\n");
 	} else {
-		if(DEBUG) printf(" ERRORE, surface texture not received!\n");
+		if(DEBUG) printf(" ERRORE, vehicle texture not received!\n");
 	}
 	my_texture_from_server = vehicle_packet->image;
 	
