@@ -21,10 +21,6 @@
 #include "so_game_protocol.h"
 
 
-World world;
-int id;
-Client** clients;
-
 void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
@@ -38,6 +34,9 @@ typedef struct Client {
 	int id;	
 } Client;
 
+World world;
+int id;
+Client** clients;
 
 
 int main(int argc, char **argv) {
@@ -257,7 +256,6 @@ void *udp_handler(void *arg) {
 		ERROR_HELPER(res, "Cannot recieve from the client");
 		VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(vehicle_buffer, sizeof(vehicle_buffer));
 		printf("Recived VehicleUpdate\n");
-
 
 
 		ClientUpdate* update_block = (ClientUpdate*)malloc(sizeof(ClientUpdate));
