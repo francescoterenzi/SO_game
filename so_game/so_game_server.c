@@ -196,9 +196,7 @@ void *tcp_client_handler(void *arg){
 	thread_args* args = (thread_args*)arg;
 	int id = args->id;
 	int socket_desc = args->socket_desc;
-	
-	int ret;
-	
+
 	char msg[BUFLEN];
 	int buf_len = sizeof(msg);
 	
@@ -226,6 +224,7 @@ void *tcp_client_handler(void *arg){
 	
 	if(DEBUG) printf("Message type : %d\n", (image_packet->header).type); 
 	int client_id = image_packet->id; /// serve se dovrò fare un singolo thread per tutti i client
+	
 	
 	// send surface texture
 	PacketHeader* texture_header = (PacketHeader*)malloc(sizeof(PacketHeader));
@@ -266,6 +265,13 @@ void *tcp_client_handler(void *arg){
 	
 	Packet_free(vehicle_header);
 	free(vehicle_packet);
+	
+	while(1){
+		//DO NOTHING
+		sleep(5);
+		
+		//Here will be added something later (maybe)
+	}
 }
 
 
