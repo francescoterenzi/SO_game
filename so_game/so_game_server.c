@@ -142,7 +142,6 @@ void *tcp_handler(void *arg) {
 
 	while (1) {		
 		
-		/** ASK TO GRISETTI **/
 		// accept incoming connection
 		client_desc = accept(socket_desc, (struct sockaddr *)client_addr, (socklen_t *)&sockaddr_len);
 		if (client_desc == -1 && errno == EINTR)
@@ -162,7 +161,7 @@ void *tcp_handler(void *arg) {
 		pthread_t thread;
 		thread_args* args = (thread_args*)malloc(sizeof(thread_args));
 		args->socket_desc = client_desc;
-		args->id = id; //here I set the client id
+		args->id = id; //here I set id for the client
 		id = id + 1;
 		
 		ret = pthread_create(&thread, NULL, tcp_client_handler, (void*)args);

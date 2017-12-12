@@ -28,19 +28,18 @@
 int window;
 WorldViewer viewer;
 World world;
-Vehicle* vehicle; // The vehicle
+Vehicle* vehicle;
 
-// STRUTTURE DATI
+
 typedef struct {
   volatile int run;
 } UpdaterArgs;
- 
-// PROTOTIPI
+
 int connectToServer(void);
 void *updater_thread(void *arg);
 void sendToServer(int socket_desc, IdPacket* header);
 
-// MAIN
+
 int main(int argc, char **argv) {
 	if (argc<3) {
 	printf("usage: %s <server_address> <player texture>\n", argv[1]);
@@ -56,7 +55,7 @@ int main(int argc, char **argv) {
 		printf("Fail! \n");
 	}
 	
-	/** ASK TO GRISETTI **/
+	
 	Image* my_texture_for_server = NULL;
 	// todo: connect to the server
 	//   -get an id
@@ -142,7 +141,6 @@ int main(int argc, char **argv) {
 }
 
 int connectToServer(void){
-	/** Connection to the server **/
 	int ret;
 
 	// variables for handling a socket
@@ -194,14 +192,14 @@ void *updater_thread(void *arg) {
 		vehicle_packet->rotational_force = 9.0;
 		vehicle_packet->translational_force = 9.0;
 		
-		char vehicle_buffer[1000000];
+		char vehicle_buffer[BUFLEN];
 		int vehicle_buffer_size = Packet_serialize(vehicle_buffer, &vehicle_packet->header);
 		
 		ret = sendto(s, vehicle_buffer, vehicle_buffer_size , 0 , (struct sockaddr *) &si_other, slen);
 		ERROR_HELPER(ret, "Cannot send to server");
 
 		
-        char world_buffer[1000000];
+        char world_buffer[BUFLEN];
 		ret = recvfrom(s, world_buffer, sizeof(world_buffer), 0, (struct sockaddr *) &si_other, (socklen_t *) &slen);
 		ERROR_HELPER(ret, "Cannot recv from server");
 		
@@ -219,7 +217,7 @@ void sendToServer(int socket_desc, IdPacket* packet){
 	// h is the packet to write
 	//int Packet_serialize(char* dest, const PacketHeader* h);
 	int ret;
-	char to_send[1000000];
+	char to_send[BUFLEN];
 	int len =  Packet_serialize(to_send, &packet->header);
 
 	while ((ret = send(socket_desc, to_send, len, 0)) < 0){
