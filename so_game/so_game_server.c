@@ -241,7 +241,6 @@ void *tcp_client_handler(void *arg){
 	sendToClient(socket_desc , msg , &texture_packet->header);
 	
 	Packet_free(texture_header);
-	free(texture_packet);
 	
 	
 	// send surface elevation
@@ -256,7 +255,6 @@ void *tcp_client_handler(void *arg){
 	sendToClient(socket_desc , msg , &elevation_packet->header);
 	
 	Packet_free(elevation_header);
-	free(elevation_packet);
 	
 	
 	// send vehicle texture of the client client_id
@@ -271,7 +269,6 @@ void *tcp_client_handler(void *arg){
 	sendToClient(socket_desc , msg , &vehicle_packet->header);
 	
 	Packet_free(vehicle_header);
-	free(vehicle_packet);
 	
 	while(1){
 		//DO NOTHING
