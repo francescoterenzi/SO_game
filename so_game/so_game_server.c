@@ -26,6 +26,8 @@ void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
 void sendToClient(int socket_desc, char* to_send, PacketHeader* packet);
 size_t receiveFromClient(int socket_desc, char* msg , size_t buf_len);
+void clear(char* buf, size_t len);
+
 
 typedef struct thread_args {
 	int id;
@@ -36,12 +38,17 @@ typedef struct Client {
 	int id;	
 } Client;
 
+
+
 World world;
-Image* surface_elevation;
 Image* surface_texture;
+Image* surface_elevation;
 Image* vehicle_texture;
+
 Client** clients;
 int id;
+
+
 
 /**  TO REMEMBER	
  * Alla fine, prima di chiudere il server bisogna rilasciare la memoria
@@ -49,6 +56,7 @@ int id;
  *   - void Image_free(Image* img);
  *   - free(...) varie
  * **/
+
 
 
 int main(int argc, char **argv) {
@@ -130,7 +138,7 @@ void *tcp_handler(void *arg) {
 
 	server_addr.sin_addr.s_addr = INADDR_ANY; // we want to accept connections from any interface
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_port = htons(SERVER_PORT); // network byte order!
+	server_addr.sin_port = htons(TCP_PORT); // network byte order!
 
 	// We enable SO_REUSEADDR to quickly restart our server after a crash
 	int reuseaddr_opt = 1;
@@ -200,75 +208,78 @@ void *tcp_client_handler(void *arg){
     int ret;
 	char msg[BUFLEN];
 	size_t buf_len = sizeof(msg);
-	memset(msg , '\0', sizeof(char)*BUFLEN);
+	clear(msg,buf_len);
 
 	
-	ret = receiveFromClient(socket_desc , msg , buf_len);
+	ret = receiveFromClient(socket_desc , msg , buf_len); // Receiving id request
 	
 	/// if(DEBUG) printf("Message received!\n");
 	
-	/// PacketHeader* Packet_deserialize(const char* buffer, int size);
 	IdPacket* packet_from_client = (IdPacket*)Packet_deserialize(msg , ret);
 	
 	IdPacket* to_send = (IdPacket*)malloc(sizeof(IdPacket));
 	to_send->header = packet_from_client->header;
 	to_send->id = id;
 	
-	memset(msg , '\0', sizeof(char)*BUFLEN);
+	clear(msg,buf_len);
 	if(DEBUG) printf("%s Assignment id to the client: %d\n", TCP_SOCKET_NAME, id);
 	
-	sendToClient(socket_desc, msg , &to_send->header); // Send to client the id assigned
+	sendToClient(socket_desc, msg , &(to_send->header)); // Send to the client the assigned id
 	
-	if(DEBUG) printf("ciaiii\n"); 
 	
-  // SEND WORLD MAP TO THE CLIENT
-	memset(msg , '\0', sizeof(char)*BUFLEN);
+    // SENDING WORLD MAP TO THE CLIENT
+	clear(msg , buf_len);
 	ret = receiveFromClient(socket_desc, msg , buf_len); //client requested the world map
 	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(msg , ret);
 	
 	if(DEBUG) printf("Message type : %d\n", (image_packet->header).type); 
-	int client_id = image_packet->id; /// serve se dovrò fare un singolo thread per tutti i client
+	int client_id = image_packet->id; /// servirà se dovrò fare un singolo thread per tutti i client
 	
 	
 	// send surface texture
-	memset(msg , 0, sizeof(char)*BUFLEN);
+	clear(msg , buf_len);
+	
 	PacketHeader* texture_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	texture_header->type = PostTexture;
 	
 	ImagePacket * texture_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	texture_packet->header = (*texture_header);
+	texture_packet->header = *texture_header;
 	texture_packet->id = 0;
 	texture_packet->image = surface_texture;
-	sendToClient(socket_desc , msg , &(texture_packet->header));
 	
-	Packet_free(texture_header);
-	
+	sendToClient(socket_desc , msg , &(texture_packet->header));	
+		
 	
 	// send surface elevation
-	memset(msg , 0, buf_len);
+	clear(msg , buf_len);
+	
 	PacketHeader* elevation_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	elevation_header->type = PostElevation;
 	
 	ImagePacket * elevation_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	elevation_packet->header = (*elevation_header);
+	elevation_packet->header = *elevation_header;
 	elevation_packet->id = 0;
 	elevation_packet->image = surface_elevation;
+	
 	sendToClient(socket_desc , msg , &(elevation_packet->header));
-	
-	Packet_free(elevation_header);
-	
+	 
 	
 	// send vehicle texture of the client client_id
-	memset(msg , '\0', sizeof(char)*BUFLEN);
+	clear(msg , buf_len);
+	
 	PacketHeader* vehicle_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	vehicle_header->type = PostTexture;
 	
 	ImagePacket * vehicle_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	vehicle_packet->header = (*vehicle_header);
+	vehicle_packet->header = *vehicle_header;
 	vehicle_packet->id = client_id;
 	vehicle_packet->image = vehicle_texture;
-	sendToClient(socket_desc , msg , &vehicle_packet->header);
 	
+	sendToClient(socket_desc , msg , &(vehicle_packet->header));
+	
+	// free allocated memory
+	Packet_free(texture_header);
+	Packet_free(elevation_header);
 	Packet_free(vehicle_header);
 	
 	while(1){
@@ -295,7 +306,7 @@ void *udp_handler(void *arg) {
 	memset((char *) &si_me, 0, sizeof(si_me));
 
 	si_me.sin_family = AF_INET;
-	si_me.sin_port = htons(SERVER_PORT);
+	si_me.sin_port = htons(UDP_PORT);
 	si_me.sin_addr.s_addr = htonl(INADDR_ANY);
 
 
@@ -341,24 +352,14 @@ void *udp_handler(void *arg) {
 
 
 
-size_t receiveFromClient(int socket_desc, char* msg , size_t buf_len){
-	int ret;
-	
-	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
-		if (errno == EINTR) continue;
-        ERROR_HELPER(-1, "Cannot receive from client");
-	}
-	msg[ret] = '\0';
-	return ret;
-}
-
-
 void sendToClient(int socket_desc, char* to_send , PacketHeader* packet){
 	
 	int ret;
 	int len =  Packet_serialize(to_send, packet);
+	
+	if(DEBUG) printf("SENDING MSG: %s\n", to_send); 
 
-	while ((ret = send(socket_desc, to_send, len , 0)) < 0){
+	while ((ret = send(socket_desc, to_send, (size_t)len , 0)) < 0){
         if (errno == EINTR)
             continue;
         ERROR_HELPER(-1, "Cannot send msg to the server");
@@ -366,6 +367,25 @@ void sendToClient(int socket_desc, char* to_send , PacketHeader* packet){
     
     //if(DEBUG) printf("Message sent\n");
 }
+
+
+size_t receiveFromClient(int socket_desc, char* msg , size_t buf_len){
+	int ret;
+	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
+		if (errno == EINTR) continue;
+        ERROR_HELPER(-1, "Cannot receive from client");
+	}
+	msg[ret] = '\0';
+	return ret; //number of bytes received
+}
+
+
+void clear(char* buf, size_t len){
+	//memset(buf,0,len);
+	//memset(buf,'\0',len);
+	memset(buf,'\0',sizeof(char)*BUFLEN);
+}
+
 
 
 /**
