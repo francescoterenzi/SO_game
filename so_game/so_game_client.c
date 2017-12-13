@@ -79,11 +79,11 @@ int main(int argc, char **argv) {
 	
 	
 	// GET AN ID
-	PacketHeader* id_header = (PacketHeader*)malloc(sizeof(PacketHeader));
-	id_header->type = GetId;
+	PacketHeader id_header;
+	id_header.type = GetId;
 	
 	IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
-	id_packet->header = *id_header;
+	id_packet->header = id_header;
 	id_packet->id = my_id;
 	
 	
@@ -107,11 +107,11 @@ int main(int argc, char **argv) {
 	
 	// SEND YOUR TEXTURE to the server (so that all can see you)
 	// server response should assign the surface texture, the surface elevation and the texture to vehicle
-	PacketHeader* image_header = (PacketHeader*)malloc(sizeof(PacketHeader));
-	image_header->type = PostTexture;
+	PacketHeader image_header;
+	image_header.type = PostTexture;
 	
 	ImagePacket* image_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	image_packet->header = *image_header;
+	image_packet->header = image_header;
 	image_packet->id = my_id;
 	image_packet->image = my_texture;
 	
@@ -168,11 +168,11 @@ int main(int argc, char **argv) {
 	
 	
 	//free allocated memory
-	Packet_free(&(id_packet->header));
-	Packet_free(&(image_packet->header));
-	Packet_free(&(texture_packet->header));
-	Packet_free(&(elevation_packet->header));
-	Packet_free(&(vehicle_packet->header));
+	Packet_free(&id_packet->header);
+	Packet_free(&image_packet->header);
+	Packet_free(&texture_packet->header);
+	Packet_free(&elevation_packet->header);
+	Packet_free(&vehicle_packet->header);
 	
 	// construct the world
 	World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
@@ -293,8 +293,9 @@ void sendToServer(int socket_desc, PacketHeader* packet){
 	int ret;
 	char to_send[BUFLEN];
 	int len =  Packet_serialize(to_send, packet); 
+	//to_send[len+1] = '\0';
 
-	while ((ret = send(socket_desc, to_send, (size_t)len , 0)) < 0){
+	while ((ret = send(socket_desc, to_send, len , 0)) < 0){
         if (errno == EINTR)
             continue;
         ERROR_HELPER(-1, "Cannot send msg to the server");

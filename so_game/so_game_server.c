@@ -239,11 +239,11 @@ void *tcp_client_handler(void *arg){
 	// send surface texture
 	clear(msg , buf_len);
 	
-	PacketHeader* texture_header = (PacketHeader*)malloc(sizeof(PacketHeader));
-	texture_header->type = PostTexture;
+	PacketHeader texture_header;
+	texture_header.type = PostTexture;
 	
 	ImagePacket * texture_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	texture_packet->header = *texture_header;
+	texture_packet->header = texture_header;
 	texture_packet->id = 0;
 	texture_packet->image = surface_texture;
 	
@@ -253,11 +253,11 @@ void *tcp_client_handler(void *arg){
 	// send surface elevation
 	clear(msg , buf_len);
 	
-	PacketHeader* elevation_header = (PacketHeader*)malloc(sizeof(PacketHeader));
-	elevation_header->type = PostElevation;
+	PacketHeader elevation_header;
+	elevation_header.type = PostElevation;
 	
 	ImagePacket * elevation_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	elevation_packet->header = *elevation_header;
+	elevation_packet->header = elevation_header;
 	elevation_packet->id = 0;
 	elevation_packet->image = surface_elevation;
 	
@@ -267,20 +267,20 @@ void *tcp_client_handler(void *arg){
 	// send vehicle texture of the client client_id
 	clear(msg , buf_len);
 	
-	PacketHeader* vehicle_header = (PacketHeader*)malloc(sizeof(PacketHeader));
-	vehicle_header->type = PostTexture;
+	PacketHeader vehicle_header;
+	vehicle_header.type = PostTexture;
 	
 	ImagePacket * vehicle_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	vehicle_packet->header = *vehicle_header;
+	vehicle_packet->header = vehicle_header;
 	vehicle_packet->id = client_id;
 	vehicle_packet->image = vehicle_texture;
 	
 	sendToClient(socket_desc , msg , &(vehicle_packet->header));
 	
 	// free allocated memory
-	Packet_free(texture_header);
-	Packet_free(elevation_header);
-	Packet_free(vehicle_header);
+	Packet_free(&texture_packet->header);
+	Packet_free(&elevation_packet->header);
+	Packet_free(&vehicle_packet->header);
 	
 	while(1){
 		//DO NOTHING
@@ -356,10 +356,11 @@ void sendToClient(int socket_desc, char* to_send , PacketHeader* packet){
 	
 	int ret;
 	int len =  Packet_serialize(to_send, packet);
+	//to_send[len+1] = '\0';
 	
 	if(DEBUG) printf("SENDING MSG: %s\n", to_send); 
 
-	while ((ret = send(socket_desc, to_send, (size_t)len , 0)) < 0){
+	while ((ret = send(socket_desc, to_send, len , 0)) < 0){
         if (errno == EINTR)
             continue;
         ERROR_HELPER(-1, "Cannot send msg to the server");
