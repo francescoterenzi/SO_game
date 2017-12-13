@@ -219,6 +219,7 @@ void *tcp_client_handler(void *arg){
 	
 	sendToClient(socket_desc, msg , &to_send->header); // Send to client the id assigned
 	
+	if(DEBUG) printf("ciaiii\n"); 
 	
   // SEND WORLD MAP TO THE CLIENT
 	memset(msg , '\0', sizeof(char)*BUFLEN);
@@ -230,7 +231,7 @@ void *tcp_client_handler(void *arg){
 	
 	
 	// send surface texture
-	memset(msg , '\0', sizeof(char)*BUFLEN);
+	memset(msg , 0, sizeof(char)*BUFLEN);
 	PacketHeader* texture_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	texture_header->type = PostTexture;
 	
@@ -238,13 +239,13 @@ void *tcp_client_handler(void *arg){
 	texture_packet->header = (*texture_header);
 	texture_packet->id = 0;
 	texture_packet->image = surface_texture;
-	sendToClient(socket_desc , msg , &texture_packet->header);
+	sendToClient(socket_desc , msg , &(texture_packet->header));
 	
 	Packet_free(texture_header);
 	
 	
 	// send surface elevation
-	memset(msg , '\0', sizeof(char)*BUFLEN);
+	memset(msg , 0, buf_len);
 	PacketHeader* elevation_header = (PacketHeader*)malloc(sizeof(PacketHeader));
 	elevation_header->type = PostElevation;
 	
@@ -252,7 +253,7 @@ void *tcp_client_handler(void *arg){
 	elevation_packet->header = (*elevation_header);
 	elevation_packet->id = 0;
 	elevation_packet->image = surface_elevation;
-	sendToClient(socket_desc , msg , &elevation_packet->header);
+	sendToClient(socket_desc , msg , &(elevation_packet->header));
 	
 	Packet_free(elevation_header);
 	
