@@ -233,21 +233,10 @@ void *tcp_client_handler(void *arg){
 	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(msg , ret);
 	
 	if(DEBUG) printf("Message type : %d\n", (image_packet->header).type); 
-	int client_id = image_packet->id; /// servirà se dovrò fare un singolo thread per tutti i client
 	
-	
-	// send surface texture
-	clear(msg , buf_len);
-	
-	PacketHeader texture_header;
-	texture_header.type = PostTexture;
-	
-	ImagePacket * texture_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	texture_packet->header = texture_header;
-	texture_packet->id = 0;
-	texture_packet->image = surface_texture;
-	
-	sendToClient(socket_desc , msg , &(texture_packet->header));	
+	int client_id = image_packet->id;
+	Image* client_image = image_packet->image;
+
 		
 	
 	// send surface elevation
@@ -261,7 +250,27 @@ void *tcp_client_handler(void *arg){
 	elevation_packet->id = 0;
 	elevation_packet->image = surface_elevation;
 	
-	sendToClient(socket_desc , msg , &(elevation_packet->header));
+	if(DEBUG) printf("***** SENDING SURFACE ELEVATION *****\n");
+	
+	sendToClient(socket_desc , msg , &elevation_packet->header);
+	
+		
+
+	// send surface texture
+	clear(msg , buf_len);
+	
+	PacketHeader texture_header;
+	texture_header.type = PostTexture;
+	
+	ImagePacket * texture_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
+	texture_packet->header = texture_header;
+	texture_packet->id = 0;
+	texture_packet->image = surface_texture;
+	
+	if(DEBUG) printf("***** SENDING SURFACE TEXTURE *****\n");
+
+	sendToClient(socket_desc , msg , &texture_packet->header);
+	
 	 
 	
 	// send vehicle texture of the client client_id
@@ -275,7 +284,13 @@ void *tcp_client_handler(void *arg){
 	vehicle_packet->id = client_id;
 	vehicle_packet->image = vehicle_texture;
 	
+	if(DEBUG) printf("***** SENDING VEHICLE TEXTURE *****\n");
+
 	sendToClient(socket_desc , msg , &(vehicle_packet->header));
+	
+	
+	if(DEBUG) printf("***** ALL TEXTURES SENT *****\n");
+	
 	
 	// free allocated memory
 	Packet_free(&texture_packet->header);
@@ -353,19 +368,16 @@ void *udp_handler(void *arg) {
 
 
 void sendToClient(int socket_desc, char* to_send , PacketHeader* packet){
-	
 	int ret;
+	
 	int len =  Packet_serialize(to_send, packet);
-	//to_send[len+1] = '\0';
 	
 	if(DEBUG) printf("SENDING MSG: %s\n", to_send); 
 
 	while ((ret = send(socket_desc, to_send, len , 0)) < 0){
-        if (errno == EINTR)
-            continue;
+        if (errno == EINTR) continue;
         ERROR_HELPER(-1, "Cannot send msg to the server");
-    }
-    
+    }    
     //if(DEBUG) printf("Message sent\n");
 }
 
@@ -382,9 +394,7 @@ size_t receiveFromClient(int socket_desc, char* msg , size_t buf_len){
 
 
 void clear(char* buf, size_t len){
-	//memset(buf,0,len);
-	//memset(buf,'\0',len);
-	memset(buf,'\0',sizeof(char)*BUFLEN);
+	memset(buf,0,len);
 }
 
 

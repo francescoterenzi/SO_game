@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
 	}
 	
 	
-	///Image* my_texture_for_server = NULL; *BHO*
+	Image* my_texture_for_server = my_texture;
 	
 	// todo: connect to the server
 	//   -get an id
@@ -73,9 +73,11 @@ int main(int argc, char **argv) {
 	int my_id = -1;
 	Image* map_elevation;
 	Image* map_texture;
-	Image* my_texture_from_server; //vehicle texture (maybe)
+	Image* my_texture_from_server; //vehicle texture
 	
 	int ret;
+	char buf[BUFLEN];
+	size_t buf_len = sizeof(buf);
 	
 	
 	// GET AN ID
@@ -90,11 +92,7 @@ int main(int argc, char **argv) {
 	int socket;
 	socket = connectToServer(); //initiate a connection on the socket
 	
-	char buf[BUFLEN];
-	size_t buf_len = sizeof(buf);
-	clear(buf , buf_len);
-	
-	sendToServer(socket , &(id_packet->header));	// Send id request
+	sendToServer(socket , &id_packet->header);	// Send id request
 	
 	ret = receiveFromServer(socket , buf , buf_len);  // Receive id response
 	
@@ -113,23 +111,9 @@ int main(int argc, char **argv) {
 	ImagePacket* image_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
 	image_packet->header = image_header;
 	image_packet->id = my_id;
-	image_packet->image = my_texture;
+	image_packet->image = my_texture_for_server;
 	
 	sendToServer(socket , &image_packet->header);	
-	
-	
-	// GET SURFACE TEXTURE
-	clear(buf , buf_len);
-	
-    ret = receiveFromServer(socket , buf , buf_len);
-    ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
-	
-	if( (texture_packet->header).type == PostTexture && texture_packet->id == 0) {
-		if(DEBUG) printf(" OK, surface texture received!\n");
-	} else {
-		if(DEBUG) printf(" ERROR, surface texture not received!\n");
-	}
-    map_texture = texture_packet->image;
     
     
     // GET ELEVATION MAP  
@@ -139,13 +123,27 @@ int main(int argc, char **argv) {
     ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
 	
-	        // ***SI BLOCCA QUI*** //
 	if( (elevation_packet->header).type == PostElevation && elevation_packet->id == 0) {
 		if(DEBUG) printf(" OK, elevation map received!\n");
 	} else {
 		if(DEBUG) printf(" ERROR, elevation map not received!\n");
 	}
 	map_elevation = elevation_packet->image;
+	
+	
+	// GET SURFACE TEXTURE
+	clear(buf , buf_len);
+	
+    ret = receiveFromServer(socket , buf , buf_len);
+    ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
+	
+	     // *** SI BLOCCA QUI, probabilmente la struct che arriva non è come dovrebbe essere *** ///
+	if( (texture_packet->header).type == PostTexture && texture_packet->id == 0) {
+		if(DEBUG) printf(" OK, surface texture received!\n");
+	} else {
+		if(DEBUG) printf(" ERROR, surface texture not received!\n");
+	}
+    map_texture = texture_packet->image;
     
     
     // GET VEHICLE TEXTURE
@@ -165,6 +163,8 @@ int main(int argc, char **argv) {
 	
 	///if(DEBUG) printf(" map_texture: %s\n", map_texture->data);
 	///if(DEBUG) printf(" map_elevation: %s\n", map_elevation->data);
+	
+	if(DEBUG) printf("***** ALL TEXTURES RECEIVED *****\n");
 	
 	
 	//free allocated memory
@@ -292,12 +292,10 @@ int connectToServer(void){
 void sendToServer(int socket_desc, PacketHeader* packet){
 	int ret;
 	char to_send[BUFLEN];
-	int len =  Packet_serialize(to_send, packet); 
-	//to_send[len+1] = '\0';
+	int len =  Packet_serialize(to_send, packet);
 
 	while ((ret = send(socket_desc, to_send, len , 0)) < 0){
-        if (errno == EINTR)
-            continue;
+        if (errno == EINTR) continue;
         ERROR_HELPER(-1, "Cannot send msg to the server");
     }
     //if(DEBUG) printf("Message sent\n");
@@ -312,14 +310,13 @@ size_t receiveFromServer(int socket_desc, char* msg , size_t buf_len){
         ERROR_HELPER(-1, "Cannot receive from server");
 	}
 	msg[ret] = '\0';	
-	if(DEBUG) printf("RECEIVED MSG: %s\n", msg);
+	//if(DEBUG) printf("RECEIVED MSG: %s\n", msg);
+	
 	return ret; //number of bytes received
 }
 
 
 void clear(char* buf, size_t len){
-	//memset(buf,0,len);
-	//memset(buf,'\0',len);
-	memset(buf,'\0',sizeof(char)*BUFLEN);
+	memset(buf,0,len);
 }
 
