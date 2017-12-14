@@ -8,13 +8,13 @@
      Server Side:
      - the server operates in both TCP and UDP
     
-	   /*** VALERIO ***/
+	   
        TCP Part
        - registerning a new client when it comes online
        - deregistering a client when it goes offline
        - sending the map, when the client requests it
     
-	   /*** FRANCESCO ***/
+	   
 	   UDP part
        - the server receives preiodic upates from the client
          in the form of
