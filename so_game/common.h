@@ -14,7 +14,7 @@
 
 /* Configuration parameters */
 #define DEBUG           1   // display debug messages
-#define MAX_CONN_QUEUE  20   // max number of connections the server can queue
+#define MAX_CONN_QUEUE  3   // max number of connections the server can queue
 #define UDP_PORT        3000
 #define TCP_PORT        4000
 #define BUFLEN          1000000
