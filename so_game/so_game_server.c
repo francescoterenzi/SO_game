@@ -100,23 +100,21 @@ int main(int argc, char **argv) {
 	
 	int ret;
 	pthread_t tcp_thread;
-	//pthread_t udp_thread;
+	pthread_t udp_thread;
 	
 	//Creating tcp socket..
 	ret = pthread_create(&tcp_thread, NULL, tcp_handler, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the tcp_thread!");
 	
-	/**
 	//Creating udp socket..
 	ret = pthread_create(&udp_thread, NULL, udp_handler, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the udp_thread!");
-	**/
 	
 	//Joining udp and tcp sockets.
 	ret = pthread_join(tcp_thread, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot join the tcp_thread!");
-	//ret = pthread_join(udp_thread, NULL);
-	//PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
+	ret = pthread_join(udp_thread, NULL);
+	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
 	
 	exit(EXIT_SUCCESS); 
 }
@@ -167,6 +165,8 @@ void *tcp_handler(void *arg) {
 		if (client_desc == -1 && errno == EINTR)
 			continue; // check for interruption by signals
 		ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
+
+		//if (DEBUG) fprintf(stderr, "Incoming connection accepted...\n");
 		
 		
 		// La connessione è stata accettata, ora creo una struct con tutte le informazioni utili per il client e me la salvo
@@ -189,9 +189,6 @@ void *tcp_handler(void *arg) {
 
 		ret = pthread_detach(thread); // I won't phtread_join() on this thread
 	    PTHREAD_ERROR_HELPER(ret, "Could not detach the thread");
-	    
-        // we can't just reset fields: we need a new buffer for client_addr!
-        client_addr = calloc(1, sizeof(struct sockaddr_in));
 
 	}
 	
@@ -204,74 +201,64 @@ void *tcp_handler(void *arg) {
 
 
 void *tcp_client_handler(void *arg){
-
 	thread_args* args = (thread_args*)arg;
 	int id = args->id;
-	int socket = args->socket_desc;
+	int socket_desc = args->socket_desc;
 
+    int ret;
+	char msg[BUFLEN];
+	size_t buf_len = sizeof(msg);
+	clear(msg,buf_len);
 
-	int ret = 0;
 	
-	char id_request_buf[BUFLEN];
-	while( (ret = recv(socket , id_request_buf , sizeof(id_request_buf), 0)) < 0) { // Receiving id request
-            if (errno == EINTR) continue;
-            ERROR_HELPER(-1, "Cannot read from socket");
-	}
-	IdPacket* id_request = (IdPacket*)Packet_deserialize(id_request_buf , ret);
+	ret = receiveFromClient(socket_desc , msg , buf_len); // Receiving id request
 	
-	IdPacket* id_response = (IdPacket*)malloc(sizeof(IdPacket));
-	id_response->header = id_request->header;
-	id_response->id = id;
+	/// if(DEBUG) printf("Message received!\n");
 	
-
-	printf("%s Assignment id to the client: %d\n", TCP_SOCKET_NAME, id);
+	IdPacket* packet_from_client = (IdPacket*)Packet_deserialize(msg , ret);
 	
-	char id_response_buf[BUFLEN];
-	int id_response_buf_size = Packet_serialize(id_response_buf, &id_response->header);
-	while( (ret =  send(socket, id_response_buf, id_response_buf_size, 0)) < 0) { // Send to the client the assigned id
-            if (errno == EINTR) continue;
-            ERROR_HELPER(-1, "Cannot write to socket");
-	}
-	printf("id_size: %d\n", ret);
+	IdPacket* to_send = (IdPacket*)malloc(sizeof(IdPacket));
+	to_send->header = packet_from_client->header;
+	to_send->id = id;
+	
+	clear(msg,buf_len);
+	if(DEBUG) printf("%s Assignment id to the client: %d\n", TCP_SOCKET_NAME, id);
+	
+	sendToClient(socket_desc, msg , &(to_send->header)); // Send to the client the assigned id
 	
 	
-    // RECEIVING CLIENT TEXTURE
-    char image_packet_buf[BUFLEN];
-    ret = 0;
-    while( (ret = recv(socket, image_packet_buf , sizeof(image_packet_buf), 0) < 0)) { 
-            if (errno == EINTR)
-                continue;
-            ERROR_HELPER(-1, "Cannot read from socket");
-    }
-	printf("client_texture_size: %d\n", ret);
+    // SENDING WORLD MAP TO THE CLIENT
+	clear(msg , buf_len);
+	ret = receiveFromClient(socket_desc, msg , buf_len); //client requested the world map
+	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(msg , ret);
 	
-	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(image_packet_buf , ret);
-
+	if(DEBUG) printf("Message type : %d\n", (image_packet->header).type); 
+	
 	int client_id = image_packet->id;
-	//Image* client_image = image_packet->image;
+	Image* client_image = image_packet->image;
 
+		
 	
 	// send surface elevation
-	ImagePacket * elevation_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
+	clear(msg , buf_len);
 	
 	PacketHeader elevation_header;
 	elevation_header.type = PostElevation;
 	
+	ImagePacket * elevation_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
 	elevation_packet->header = elevation_header;
 	elevation_packet->id = 0;
 	elevation_packet->image = surface_elevation;
 	
-    char elevation_packet_buf[BUFLEN];
-    int elevation_packet_buf_size = Packet_serialize(elevation_packet_buf, &elevation_packet->header);
-    
-    ret = 0;
-	while( (ret =  send(socket, elevation_packet_buf, elevation_packet_buf_size, 0)) < 0) {
-            if (errno == EINTR) continue;
-            ERROR_HELPER(-1, "Cannot write to socket");
-	}
-	printf("elevation_size: %d\n", ret);
+	if(DEBUG) printf("***** SENDING SURFACE ELEVATION *****\n");
+	
+	sendToClient(socket_desc , msg , &elevation_packet->header);
+	
+		
 
-	// send surface texture	
+	// send surface texture
+	clear(msg , buf_len);
+	
 	PacketHeader texture_header;
 	texture_header.type = PostTexture;
 	
@@ -280,18 +267,15 @@ void *tcp_client_handler(void *arg){
 	texture_packet->id = 0;
 	texture_packet->image = surface_texture;
 	
-    char texture_packet_buf[BUFLEN];
-    int texture_packet_buf_size = Packet_serialize(texture_packet_buf, &texture_packet->header);
-    
-    ret = 0;
-	while( (ret =  send(socket, texture_packet_buf, texture_packet_buf_size, 0)) < 0) {
-            if (errno == EINTR) continue;
-            ERROR_HELPER(-1, "Cannot write to socket");
-	}
-	printf("texture_size: %d\n", ret);
+	if(DEBUG) printf("***** SENDING SURFACE TEXTURE *****\n");
+
+	sendToClient(socket_desc , msg , &texture_packet->header);
+	
 	 
 	
-	// send vehicle texture of the client client_id	
+	// send vehicle texture of the client client_id
+	clear(msg , buf_len);
+	
 	PacketHeader vehicle_header;
 	vehicle_header.type = PostTexture;
 	
@@ -300,18 +284,12 @@ void *tcp_client_handler(void *arg){
 	vehicle_packet->id = client_id;
 	vehicle_packet->image = vehicle_texture;
 	
+	if(DEBUG) printf("***** SENDING VEHICLE TEXTURE *****\n");
 
-    char vehicle_packet_buf[BUFLEN];
-    int vehicle_packet_buf_size = Packet_serialize(vehicle_packet_buf, &vehicle_packet->header);
-    
-    ret = 0;
-	while( (ret =  send(socket, vehicle_packet_buf, vehicle_packet_buf_size, 0)) < 0) {
-            if (errno == EINTR) continue;
-            ERROR_HELPER(-1, "Cannot write to socket");
-	}
-	printf("vehicle_size: %d\n", ret);
+	sendToClient(socket_desc , msg , &(vehicle_packet->header));
 	
-	printf("all textures sent\n");
+	
+	if(DEBUG) printf("***** ALL TEXTURES SENT *****\n");
 	
 	
 	// free allocated memory
@@ -319,12 +297,12 @@ void *tcp_client_handler(void *arg){
 	Packet_free(&elevation_packet->header);
 	Packet_free(&vehicle_packet->header);
 	
-    ret = close(socket);
-    ERROR_HELPER(ret, "Cannot close socket for incoming connection");
-
-
-    free(args);
-    pthread_exit(NULL);
+	while(1){
+		//DO NOTHING
+		sleep(5);
+		
+		//Here will be added something later (maybe)
+	}
 }
 
 
@@ -359,7 +337,7 @@ void *udp_handler(void *arg) {
 		char vehicle_buffer[BUFLEN];
 		res = recvfrom(udp_socket, vehicle_buffer, sizeof(vehicle_buffer), 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
 		ERROR_HELPER(res, "Cannot recieve from the client");
-		//VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(vehicle_buffer, sizeof(vehicle_buffer));
+		VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(vehicle_buffer, sizeof(vehicle_buffer));
 		printf("Recived VehicleUpdate\n");
 
 
@@ -385,6 +363,38 @@ void *udp_handler(void *arg) {
 		printf("%s send to %s:%d\n", UDP_SOCKET_NAME, inet_ntoa(udp_client_addr.sin_addr), ntohs(udp_client_addr.sin_port));
 	}
 	return NULL;
+}
+
+
+
+void sendToClient(int socket_desc, char* to_send , PacketHeader* packet){
+	int ret;
+	
+	int len =  Packet_serialize(to_send, packet);
+	
+	if(DEBUG) printf("SENDING MSG: %s\n", to_send); 
+
+	while ((ret = send(socket_desc, to_send, len , 0)) < 0){
+        if (errno == EINTR) continue;
+        ERROR_HELPER(-1, "Cannot send msg to the server");
+    }    
+    //if(DEBUG) printf("Message sent\n");
+}
+
+
+size_t receiveFromClient(int socket_desc, char* msg , size_t buf_len){
+	int ret;
+	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
+		if (errno == EINTR) continue;
+        ERROR_HELPER(-1, "Cannot receive from client");
+	}
+	msg[ret] = '\0';
+	return ret; //number of bytes received
+}
+
+
+void clear(char* buf, size_t len){
+	memset(buf,0,len);
 }
 
 

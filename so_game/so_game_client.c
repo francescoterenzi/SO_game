@@ -53,164 +53,120 @@ int main(int argc, char **argv) {
 	}
 
 	printf("loading texture image from %s ... \n", argv[2]);
-	Image* my_texture_for_server = Image_load(argv[2]);
-	if (my_texture_for_server) {
+	Image* my_texture = Image_load(argv[2]);
+	if (my_texture) {
 		printf("Done! \n");
 	} else {
 		printf("Fail! \n");
 	}
 	
-	int socket = connectToServer(); //initiate a connection on the socket
 	
+	Image* my_texture_for_server = my_texture;
 	
 	// todo: connect to the server
 	//   -get an id
 	//   -send your texture to the server (so that all can see you)
 	//   -get an elevation map
 	//   -get the texture of the surface
-	
-		
-	int ret = 0;	
-	
-	// GET AN ID	
-    IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
 
-    PacketHeader id_head;
-    id_head.type = GetId;
-
-    id_packet->header = id_head;
-    id_packet->id = -1;
-    
-	char id_packet_buffer[BUFLEN];
-	int id_packet_buffer_size = Packet_serialize(id_packet_buffer, &id_packet->header);
+	// these come from the server
+	int my_id = -1;
+	Image* map_elevation;
+	Image* map_texture;
+	Image* my_texture_from_server; //vehicle texture
 	
-	while( (ret = send(socket, id_packet_buffer, id_packet_buffer_size, 0)) < 0) {
-            if (errno == EINTR) continue;
-            ERROR_HELPER(-1, "Cannot write to socket");
-	}
+	int ret;
+	char buf[BUFLEN];
+	size_t buf_len = sizeof(buf);
 	
-	char id_response[BUFLEN];
-	ret = 0;
 	
-	while( (ret = recv(socket , id_response , sizeof(id_response), 0)) < 0) {  // Receive id response
-            if (errno == EINTR) continue;
-            ERROR_HELPER(-1, "Cannot read to socket");
-	}
-	printf("id_size: %d\n", ret);
+	// GET AN ID
+	PacketHeader id_header;
+	id_header.type = GetId;
 	
-	IdPacket* received_packet = (IdPacket*)Packet_deserialize(id_response, ret); // Id received!
-	int my_id = received_packet->id;
-	printf("Id received: %d\n", my_id);
+	IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
+	id_packet->header = id_header;
+	id_packet->id = my_id;
+	
+	
+	int socket;
+	socket = connectToServer(); //initiate a connection on the socket
+	
+	sendToServer(socket , &id_packet->header);	// Send id request
+	
+	ret = receiveFromServer(socket , buf , buf_len);  // Receive id response
+	
+	
+	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, ret); // Id received!
+	my_id = received_packet->id;
+	
+	if(DEBUG) printf("Id received : %d\n", my_id);
 	
 	
 	// SEND YOUR TEXTURE to the server (so that all can see you)
 	// server response should assign the surface texture, the surface elevation and the texture to vehicle
+	PacketHeader image_header;
+	image_header.type = PostTexture;
+	
 	ImagePacket* image_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	
-	PacketHeader image_head;
-	image_head.type = PostTexture;
-	
-	image_packet->header = image_head;
+	image_packet->header = image_header;
 	image_packet->id = my_id;
 	image_packet->image = my_texture_for_server;
 	
-	char image_packet_buffer[BUFLEN];
-	int image_packet_buffer_size = Packet_serialize(image_packet_buffer, &image_packet->header);
-	
-	ret = 0;
-	while( (ret = send(socket, image_packet_buffer, image_packet_buffer_size, 0)) < 0) {
-            if (errno == EINTR) continue;
-            ERROR_HELPER(-1, "Cannot write to socket");
-	}
-	printf("client_texture_size: %d\n", ret);
-	
-	
-	/*
-	Image* map_elevation;
-	Image* map_texture;
-	Image* vehicle_texture;
-    */
+	sendToServer(socket , &image_packet->header);	
     
-    // GET ELEVATION TEXTURE
-    ret = 0;  
-    char elevation_packet_buf[BUFLEN];
     
-    while( (ret = recv(socket, elevation_packet_buf, sizeof(elevation_packet_buf), 0)) < 0) {
-            if (errno == EINTR)
-                continue;
-            ERROR_HELPER(-1, "Cannot read from socket");
-    }
+    // GET ELEVATION MAP  
+    clear(buf , buf_len);
+    
+    ret = receiveFromServer(socket , buf , buf_len);
+    ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
-	printf("elevation_size: %d\n", ret);
 	
-    ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(elevation_packet_buf, ret);
-	//Image_save(elevation_packet->image, "./images_test/elevation_packet.pgm");
-	
-	/*
 	if( (elevation_packet->header).type == PostElevation && elevation_packet->id == 0) {
 		if(DEBUG) printf(" OK, elevation map received!\n");
 	} else {
 		if(DEBUG) printf(" ERROR, elevation map not received!\n");
 	}
 	map_elevation = elevation_packet->image;
-	*/
+	
 	
 	// GET SURFACE TEXTURE
-	ret = 0;
-	char texture_packet_buf[BUFLEN];	
-    while( (ret = recv(socket, texture_packet_buf, sizeof(texture_packet_buf), 0)) < 0) {
-            if (errno == EINTR)
-                continue;
-            ERROR_HELPER(-1, "Cannot read from socket");
-    }
-
+	clear(buf , buf_len);
 	
-	printf("surface_size: %d\n", ret);
-    
-    
-    ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(texture_packet_buf, ret);
-	//Image_save(texture_packet->image, "./images_test/texture_packet.pgm");
-	/*
+    ret = receiveFromServer(socket , buf , buf_len);
+    ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
+	
+	     // *** SI BLOCCA QUI, probabilmente la struct che arriva non è come dovrebbe essere *** ///
 	if( (texture_packet->header).type == PostTexture && texture_packet->id == 0) {
 		if(DEBUG) printf(" OK, surface texture received!\n");
 	} else {
 		if(DEBUG) printf(" ERROR, surface texture not received!\n");
 	}
     map_texture = texture_packet->image;
-    */
+    
     
     // GET VEHICLE TEXTURE
-    ret = 0;
-	char vehicle_packet_buf[BUFLEN];
+	clear(buf , buf_len);
 	
-    while( (ret = recv(socket, vehicle_packet_buf, sizeof(vehicle_packet_buf), 0)) < 0) {
-            if (errno == EINTR)
-                continue;
-            ERROR_HELPER(-1, "Cannot read from socket");
-    }
+    ret = receiveFromServer(socket , buf , buf_len);
+    ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
     
-    printf("vehicle_size: %d\n", ret);
-    
-    ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(vehicle_packet_buf, ret);
-    //Image_save(vehicle_packet->image, "./images_test/vehicle_packet.pgm");
-    
-    printf("All packets received\n");
-    
-    // close the socket
-    ret = close(socket);
-    ERROR_HELPER(ret, "Cannot close socket");
-    
-    /*
 	if( (vehicle_packet->header).type == PostTexture && vehicle_packet->id > 0) {
 		if(DEBUG) printf(" OK, vehicle texture received!\n");
 	} else {
 		if(DEBUG) printf(" ERROR, vehicle texture not received!\n");
 	}
 	my_texture_from_server = vehicle_packet->image;
-	*/
-
 	
-	/**
+	
+	
+	///if(DEBUG) printf(" map_texture: %s\n", map_texture->data);
+	///if(DEBUG) printf(" map_elevation: %s\n", map_elevation->data);
+	
+	if(DEBUG) printf("***** ALL TEXTURES RECEIVED *****\n");
+	
+	
 	//free allocated memory
 	Packet_free(&id_packet->header);
 	Packet_free(&image_packet->header);
@@ -231,7 +187,10 @@ int main(int argc, char **argv) {
 	// fields of the vehicle variable
 	// when the server notifies a new player has joined the game
 	// request the texture and add the player to the pool
-
+	/*FILLME*/
+	
+	
+	/*** UDP PART NOTIFICATION ***/
 	pthread_t runner_thread;
 	pthread_attr_t runner_attrs;
 	UpdaterArgs runner_args={
@@ -248,7 +207,6 @@ int main(int argc, char **argv) {
 	
 	// cleanup
 	//World_destroy(&world);
-	*/
 	return 0;             
 }
 
@@ -293,7 +251,7 @@ void *updater_thread(void *arg) {
 		ret = recvfrom(s, world_buffer, sizeof(world_buffer), 0, (struct sockaddr *) &si_other, (socklen_t *) &slen);
 		ERROR_HELPER(ret, "Cannot recv from server");
 		
-		//WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, sizeof(world_buffer));
+		WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, sizeof(world_buffer));
 		
 		sleep(2);
 		//usleep(30000);
@@ -328,3 +286,37 @@ int connectToServer(void){
 	
 	return socket_desc;
 }
+
+
+
+void sendToServer(int socket_desc, PacketHeader* packet){
+	int ret;
+	char to_send[BUFLEN];
+	int len =  Packet_serialize(to_send, packet);
+
+	while ((ret = send(socket_desc, to_send, len , 0)) < 0){
+        if (errno == EINTR) continue;
+        ERROR_HELPER(-1, "Cannot send msg to the server");
+    }
+    //if(DEBUG) printf("Message sent\n");
+}
+
+
+
+size_t receiveFromServer(int socket_desc, char* msg , size_t buf_len){
+	int ret;
+	while( (ret = recv(socket_desc, msg , buf_len - 1, 0)) < 0 ) {
+		if (errno == EINTR) continue;
+        ERROR_HELPER(-1, "Cannot receive from server");
+	}
+	msg[ret] = '\0';	
+	//if(DEBUG) printf("RECEIVED MSG: %s\n", msg);
+	
+	return ret; //number of bytes received
+}
+
+
+void clear(char* buf, size_t len){
+	memset(buf,0,len);
+}
+
