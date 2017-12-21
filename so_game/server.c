@@ -25,6 +25,7 @@ void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
 void sendToClient(int socket_desc, PacketHeader* packet);
+int receiveFromClient(int socket_desc , char* msg);
 void clear(char* buf);
 
 
@@ -203,20 +204,15 @@ void *tcp_client_handler(void *arg){
 	int socket_desc = args->socket_desc;
 
     int ret;
+    char* buf = (char*)malloc(sizeof(char) * BUFLEN);
+    clear(buf);
 	
 	// receiving id request
-	char buf_id[BUFLEN];
-	while((ret = recv(socket_desc, buf_id , BUFLEN , 0)) < 0){
-		if(errno==EINTR) continue;
-		ERROR_HELPER(-1, "Cannot receive from server");
-	}
-    	
-	if(DEBUG) printf("*** BYTES RECEIVED: %d\n", ret);
-
-
-	// Send to the client the assigned id
-	IdPacket* packet_from_client = (IdPacket*)Packet_deserialize(buf_id , ret);
+	ret = receiveFromClient(socket_desc , buf);
 	
+	IdPacket* packet_from_client = (IdPacket*)Packet_deserialize(buf , ret);
+	
+	// Send to the client the assigned id
 	IdPacket* to_send = (IdPacket*)malloc(sizeof(IdPacket));
 	to_send->header = packet_from_client->header;
 	to_send->id = id;	
@@ -227,17 +223,12 @@ void *tcp_client_handler(void *arg){
 	
 	
     // AFTER THE CLIENT REQUESTED THE WORLD MAP, WE SEND THE NEEDED TEXTURES	
-	char buf_request[BUFLEN];
+	clear(buf);
 	
 	// receiving textures request
-	while((ret = recv(socket_desc, buf_request , sizeof(buf_request) , 0)) < 0){
-		if(errno==EINTR) continue;
-		ERROR_HELPER(-1, "Cannot receive from server");
-	}
-    	
-	if(DEBUG) printf("*** BYTES RECEIVED: %d\n", ret);
+	ret = receiveFromClient(socket_desc , buf);
 	
-	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(buf_request , ret);
+	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(buf , ret);
 	
 	int client_id = image_packet->id;
 	///Image* client_image = image_packet->image;
@@ -367,15 +358,45 @@ void *udp_handler(void *arg) {
 
 
 void sendToClient(int socket_desc, PacketHeader* packet){
-	int ret;
-	
+	int ret;	
 	char to_send[BUFLEN];
+	char len_to_send[BUFLEN];
+	
 	int len =  Packet_serialize(to_send, packet);
-
+	snprintf(len_to_send, BUFLEN , "%d", len);
+	
+	//if(DEBUG) printf("*** Bytes to send : %s ***\n" , len_to_send);
+	
+	ret = send(socket_desc, len_to_send, sizeof(long int) , 0);
+	ERROR_HELPER(ret, "Cannot send msg to the client");  
+	
 	ret = send(socket_desc, to_send, len , 0);
-	ERROR_HELPER(ret, "Cannot send msg to the server");  
+	ERROR_HELPER(ret, "Cannot send msg to the client");  
     
     if(DEBUG) printf("*** BYTES SENT : %d ***\n" , ret);
+}
+
+int receiveFromClient(int socket_desc , char* msg){
+	int ret;
+	char len_to_receive[BUFLEN];
+	
+	ret = recv(socket_desc , len_to_receive , sizeof(long int) , 0);
+	ERROR_HELPER(ret, "Cannot receive from client");
+	
+	int received_bytes = 0;
+	int to_receive = atoi(len_to_receive);
+	if(DEBUG) printf("*** Bytes to receive : %d ***\n" , to_receive);
+	
+	while(received_bytes < to_receive){
+		ret = recv(socket_desc , msg + received_bytes , to_receive - received_bytes , 0);
+	    ERROR_HELPER(ret, "Cannot receive from client");
+	    received_bytes += ret;
+	    //if(DEBUG) printf("*** Bytes received : %d ***\n" , ret);
+	    if(ret==0) break;
+	}
+	
+	if(DEBUG) printf("*** RECEIVED BYTES : %d ***\n" , received_bytes);
+	return received_bytes;
 }
 
 
