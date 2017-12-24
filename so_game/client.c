@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
 	
 	if(DEBUG) printf("***** ALL TEXTURES RECEIVED *****\n");
 	
-	
+	/*
 	//free allocated memory
 	Packet_free(&id_packet->header);
 	Packet_free(&image_packet->header);
@@ -179,6 +179,7 @@ int main(int argc, char **argv) {
 	Packet_free(&elevation_packet->header);
 	Packet_free(&vehicle_packet->header);
 	free(buf);
+	*/
 	
 	// construct the world
 	World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
@@ -205,8 +206,8 @@ int main(int argc, char **argv) {
 	  
 	pthread_attr_init(&runner_attrs);
 	pthread_create(&runner_thread, &runner_attrs, updater_thread, &runner_args);
-	//WorldViewer_runGlobal(&world, vehicle, &argc, argv);
-	//runner_args.run=0;
+	WorldViewer_runGlobal(&world, vehicle, &argc, argv);
+	runner_args.run=0;
 	
 	void* retval;
 	pthread_join(runner_thread, &retval);
