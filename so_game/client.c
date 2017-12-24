@@ -29,6 +29,7 @@ Vehicle* vehicle;
 
 typedef struct {
   volatile int run;
+  int id;
 } UpdaterArgs;
 
 int connectToServer(void);
@@ -44,6 +45,7 @@ void clear(char* buf);
  *   - void Image_free(Image* img);
  *   - free(...) varie
  * **/
+
 
 
 int main(int argc, char **argv) {
@@ -124,7 +126,7 @@ int main(int argc, char **argv) {
 	
 	
 	if( (elevation_packet->header).type == PostElevation && elevation_packet->id == 0) {
-		if(DEBUG) printf(" OK, surface elevation received!\n");
+		if(DEBUG) printf("%s ELEVATION MAP RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
 		if(DEBUG) printf(" ERROR, elevation map not received!\n");
 	}
@@ -140,7 +142,7 @@ int main(int argc, char **argv) {
     ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
 	if( (texture_packet->header).type == PostTexture && texture_packet->id == 0) {
-		if(DEBUG) printf(" OK, surface texture received!\n");
+		if(DEBUG) printf("%s SURFACE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
 		if(DEBUG) printf(" ERROR, surface texture not received!\n");
 	}
@@ -156,7 +158,7 @@ int main(int argc, char **argv) {
     ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
     
 	if( (vehicle_packet->header).type == PostTexture && vehicle_packet->id > 0) {
-		if(DEBUG) printf(" OK, vehicle texture received!\n");
+		if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
 		if(DEBUG) printf(" ERROR, vehicle texture not received!\n");
 	}
@@ -169,17 +171,8 @@ int main(int argc, char **argv) {
 	///if(DEBUG) printf(" map_texture: %s\n", map_texture->data);
 	///if(DEBUG) printf(" map_elevation: %s\n", map_elevation->data);
 	
-	if(DEBUG) printf("***** ALL TEXTURES RECEIVED *****\n");
+	if(DEBUG) printf("%s ALL TEXTURES RECEIVED\n", TCP_SOCKET_NAME);
 	
-	/*
-	//free allocated memory
-	Packet_free(&id_packet->header);
-	Packet_free(&image_packet->header);
-	Packet_free(&texture_packet->header);
-	Packet_free(&elevation_packet->header);
-	Packet_free(&vehicle_packet->header);
-	free(buf);
-	*/
 	
 	// construct the world
 	World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
@@ -202,18 +195,29 @@ int main(int argc, char **argv) {
 	pthread_attr_t runner_attrs;
 	UpdaterArgs runner_args={
 		.run=1,
+		.id = my_id
 	};
 	  
 	pthread_attr_init(&runner_attrs);
 	pthread_create(&runner_thread, &runner_attrs, updater_thread, &runner_args);
+	
 	WorldViewer_runGlobal(&world, vehicle, &argc, argv);
 	runner_args.run=0;
 	
 	void* retval;
 	pthread_join(runner_thread, &retval);
 	
-	// cleanup
-	//World_destroy(&world);
+
+	World_destroy(&world);
+
+	//free allocated memory
+	Packet_free(&id_packet->header);
+	Packet_free(&image_packet->header);
+	Packet_free(&texture_packet->header);
+	Packet_free(&elevation_packet->header);
+	Packet_free(&vehicle_packet->header);
+	free(buf);
+	
 	return 0;             
 }
 
@@ -237,15 +241,16 @@ void *updater_thread(void *arg) {
     inet_aton(SERVER_ADDRESS , &si_other.sin_addr);	
 
 	while(_arg->run) {
+	
 		
 		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)malloc(sizeof(VehicleUpdatePacket));
 		PacketHeader v_head;
 		v_head.type = VehicleUpdate;
 
 		vehicle_packet->header = v_head;
-		vehicle_packet->id = 24;
-		vehicle_packet->rotational_force = 9.0;
-		vehicle_packet->translational_force = 9.0;
+		vehicle_packet->id = _arg->id;
+		vehicle_packet->rotational_force = vehicle->rotational_force;
+		vehicle_packet->translational_force = vehicle->translational_force;
 		
 		char vehicle_buffer[BUFLEN];
 		int vehicle_buffer_size = Packet_serialize(vehicle_buffer, &vehicle_packet->header);
@@ -259,6 +264,7 @@ void *updater_thread(void *arg) {
 		ERROR_HELPER(ret, "Cannot recv from server");
 		
 		WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, sizeof(world_buffer));
+		printf("%s Number of vehicles in the game: %d\n",UDP_SOCKET_NAME, deserialized_wu_packet->num_vehicles); 
 		
 		sleep(2);
 		//usleep(30000);
@@ -311,8 +317,7 @@ void sendToServer(int socket_desc, PacketHeader* packet){
 	
 	ret = send(socket_desc, to_send, len , 0);
 	ERROR_HELPER(ret, "Cannot send msg to the server");  
-    
-    if(DEBUG) printf("*** BYTES SENT : %d ***\n" , ret);
+
 }
 
 int receiveFromServer(int socket_desc, char* msg){
@@ -324,7 +329,6 @@ int receiveFromServer(int socket_desc, char* msg){
 	
 	int received_bytes = 0;
 	int to_receive = atoi(len_to_receive);
-	if(DEBUG) printf("*** Bytes to receive : %d ***\n" , to_receive);
 	
 	while(received_bytes < to_receive){
 		ret = recv(socket_desc , msg + received_bytes , to_receive - received_bytes , 0);
@@ -333,8 +337,7 @@ int receiveFromServer(int socket_desc, char* msg){
 	    //if(DEBUG) printf("*** Bytes received : %d ***\n" , ret);
 	    if(ret==0) break;
 	}
-	
-	if(DEBUG) printf("*** RECEIVED BYTES : %d ***\n" , received_bytes);
+
 	return received_bytes;
 }
 
@@ -343,4 +346,5 @@ int receiveFromServer(int socket_desc, char* msg){
 void clear(char* buf){
 	memset(buf , 0 , BUFLEN * sizeof(char));
 }
+
 

@@ -174,7 +174,7 @@ void *tcp_handler(void *arg) {
 		Client* client = (Client*) malloc(sizeof(Client));
 		client->id = id;
 		clients[id] = client;
-		printf("Creato nuovo client: %d\n",id);
+		printf("Client [%d] created\n",id);
 		
 		pthread_t thread;
 		thread_args* args = (thread_args*)malloc(sizeof(thread_args));
@@ -185,7 +185,6 @@ void *tcp_handler(void *arg) {
 		ret = pthread_create(&thread, NULL, tcp_client_handler, (void*)args);
 		PTHREAD_ERROR_HELPER(ret, "Could not create a new thread");
 
-		//if (DEBUG) fprintf(stderr, "New thread created to handle the request!\n");
 
 		ret = pthread_detach(thread); // I won't phtread_join() on this thread
 	    PTHREAD_ERROR_HELPER(ret, "Could not detach the thread");
@@ -216,10 +215,9 @@ void *tcp_client_handler(void *arg){
 	IdPacket* to_send = (IdPacket*)malloc(sizeof(IdPacket));
 	to_send->header = packet_from_client->header;
 	to_send->id = id;	
-
-	if(DEBUG) printf("%s Assignment id to the client: %d\n", TCP_SOCKET_NAME, id);
 	
 	sendToClient(socket_desc, &to_send->header); 
+	if(DEBUG) printf("%s ASSIGNED ID TO CLIENT %d\n", TCP_SOCKET_NAME, id);
 	
 	
     // AFTER THE CLIENT REQUESTED THE WORLD MAP, WE SEND THE NEEDED TEXTURES	
@@ -244,7 +242,7 @@ void *tcp_client_handler(void *arg){
 	elevation_packet->id = 0;
 	elevation_packet->image = surface_elevation;
 	
-	if(DEBUG) printf("* SENDING SURFACE ELEVATION *\n");
+	if(DEBUG) printf("%s SENDING SURFACE ELEVATION TO CLIENT %d\n", TCP_SOCKET_NAME, id);
 	
 	sendToClient(socket_desc, &elevation_packet->header);
 	
@@ -258,7 +256,7 @@ void *tcp_client_handler(void *arg){
 	texture_packet->id = 0;
 	texture_packet->image = surface_texture;
 	
-	if(DEBUG) printf("* SENDING SURFACE TEXTURE *\n");
+	if(DEBUG) printf("%s SENDING SURFACE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, id);
 
 	sendToClient(socket_desc, &texture_packet->header);
 	
@@ -274,12 +272,12 @@ void *tcp_client_handler(void *arg){
 	vehicle_packet->id = client_id;
 	vehicle_packet->image = vehicle_texture;
 	
-	if(DEBUG) printf("* SENDING VEHICLE TEXTURE *\n");
-
+	if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, id);
+	
 	sendToClient(socket_desc, &vehicle_packet->header);
 	
 	
-	if(DEBUG) printf("***** ALL TEXTURES SENT *****\n");
+	if(DEBUG) printf("%s ALL TEXTURES SENT TO CLIENT %d\n", TCP_SOCKET_NAME, id);
 	
 	
 	// free allocated memory
@@ -328,11 +326,12 @@ void *udp_handler(void *arg) {
 		res = recvfrom(udp_socket, vehicle_buffer, sizeof(vehicle_buffer), 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
 		ERROR_HELPER(res, "Cannot recieve from the client");
 		VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(vehicle_buffer, sizeof(vehicle_buffer));
-		printf("Recived VehicleUpdate\n");
+		int id = deserialized_vehicle_packet->id;
+		printf("%s RECEIVED VEHICLE UPDATE FROM CLIENT %d\n", UDP_SOCKET_NAME, id);
 
 
 		ClientUpdate* update_block = (ClientUpdate*)malloc(sizeof(ClientUpdate));
-		update_block->id = 10;
+		update_block->id = id;
 		update_block->x = 4.4;
 	    update_block->y = 6.4;
         update_block->theta = 90;
@@ -342,7 +341,7 @@ void *udp_handler(void *arg) {
 		w_head.type = WorldUpdate;
 
 		world_packet->header = w_head;
-		world_packet->num_vehicles = 2;
+		world_packet->num_vehicles = id;
 		world_packet->updates = update_block;
 
 
@@ -350,7 +349,7 @@ void *udp_handler(void *arg) {
 		int world_buffer_size = Packet_serialize(world_buffer, &world_packet->header);
 
 		sendto(udp_socket, world_buffer, world_buffer_size , 0 , (struct sockaddr *) &udp_client_addr, udp_sockaddr_len);
-		printf("%s send to %s:%d\n", UDP_SOCKET_NAME, inet_ntoa(udp_client_addr.sin_addr), ntohs(udp_client_addr.sin_port));
+		printf("%s SEND WORLD UPDATE TO CLIENT %d\n", UDP_SOCKET_NAME, id);
 	}
 	return NULL;
 }
@@ -372,8 +371,7 @@ void sendToClient(int socket_desc, PacketHeader* packet){
 	
 	ret = send(socket_desc, to_send, len , 0);
 	ERROR_HELPER(ret, "Cannot send msg to the client");  
-    
-    if(DEBUG) printf("*** BYTES SENT : %d ***\n" , ret);
+
 }
 
 int receiveFromClient(int socket_desc , char* msg){
@@ -385,7 +383,7 @@ int receiveFromClient(int socket_desc , char* msg){
 	
 	int received_bytes = 0;
 	int to_receive = atoi(len_to_receive);
-	if(DEBUG) printf("*** Bytes to receive : %d ***\n" , to_receive);
+
 	
 	while(received_bytes < to_receive){
 		ret = recv(socket_desc , msg + received_bytes , to_receive - received_bytes , 0);
@@ -394,8 +392,7 @@ int receiveFromClient(int socket_desc , char* msg){
 	    //if(DEBUG) printf("*** Bytes received : %d ***\n" , ret);
 	    if(ret==0) break;
 	}
-	
-	if(DEBUG) printf("*** RECEIVED BYTES : %d ***\n" , received_bytes);
+
 	return received_bytes;
 }
 
