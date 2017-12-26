@@ -47,6 +47,7 @@ Image* vehicle_texture;
 
 Client** clients;
 int id;
+int numb_of_clients;
 
 
 
@@ -97,6 +98,9 @@ int main(int argc, char **argv) {
 	
 	// Qui creo un array di clients, dove la size massima è MAX_CONN_QUEUE
 	clients = (Client**) malloc(MAX_CONN_QUEUE*sizeof(Client*));
+	
+	//CREO IL MONDO
+	World_init(&world, surface_elevation, surface_texture, 0.5, 0.5, 0.5);
 	
 	int ret;
 	pthread_t tcp_thread;
@@ -158,6 +162,7 @@ void *tcp_handler(void *arg) {
 
 	id = 1;
 
+	numb_of_clients = 0;
 	while (1) {		
 		
 		// accept incoming connection
@@ -165,6 +170,7 @@ void *tcp_handler(void *arg) {
 		if (client_desc == -1 && errno == EINTR)
 			continue; // check for interruption by signals
 		ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
+		numb_of_clients += 1;
 
 		//if (DEBUG) fprintf(stderr, "Incoming connection accepted...\n");
 		
@@ -186,7 +192,7 @@ void *tcp_handler(void *arg) {
 		PTHREAD_ERROR_HELPER(ret, "Could not create a new thread");
 
 
-		ret = pthread_detach(thread); // I won't phtread_join() on this thread
+		ret = pthread_detach(thread); 
 	    PTHREAD_ERROR_HELPER(ret, "Could not detach the thread");
 
 	}
@@ -279,18 +285,33 @@ void *tcp_client_handler(void *arg){
 	
 	if(DEBUG) printf("%s ALL TEXTURES SENT TO CLIENT %d\n", TCP_SOCKET_NAME, id);
 	
+	Vehicle *vehicle=(Vehicle*) malloc(sizeof(Vehicle));
+	Vehicle_init(vehicle, &world, client_id, vehicle_texture);
+	World_addVehicle(&world, vehicle);
 	
-	// free allocated memory
+	/*
 	Packet_free(&texture_packet->header);
 	Packet_free(&elevation_packet->header);
 	Packet_free(&vehicle_packet->header);
+	*/
 	
-	while(1){
-		//DO NOTHING
-		sleep(5);
-		
-		//Here will be added something later (maybe)
+	//qui verifichiamo se il client chiude la connessione
+	while(1) {
+		ret = receiveFromClient(socket_desc, NULL);
+		if(ret == 0) {
+			numb_of_clients -= 1;
+			break;
+		}
 	}
+	
+	
+	printf("%s CLIENT %d CLOSED THE GAME\n", TCP_SOCKET_NAME, id);
+	ret = close(socket_desc);
+    ERROR_HELPER(ret, "Cannot close socket for incoming connection");
+	
+    free(args);
+    pthread_exit(NULL);
+
 }
 
 
@@ -331,23 +352,25 @@ void *udp_handler(void *arg) {
 
 
 		ClientUpdate* update_block = (ClientUpdate*)malloc(sizeof(ClientUpdate));
+		Vehicle *v = World_getVehicle(&world, id);
 		update_block->id = id;
-		update_block->x = 4.4;
-	    update_block->y = 6.4;
-        update_block->theta = 90;
+		update_block->x = v->x;
+	    update_block->y = v->y;
+        update_block->theta = v->z;
   
 		WorldUpdatePacket* world_packet = (WorldUpdatePacket*)malloc(sizeof(WorldUpdatePacket));
 		PacketHeader w_head;
 		w_head.type = WorldUpdate;
 
 		world_packet->header = w_head;
-		world_packet->num_vehicles = id;
+		world_packet->num_vehicles = numb_of_clients;
 		world_packet->updates = update_block;
 
 
 		char world_buffer[BUFLEN];
 		int world_buffer_size = Packet_serialize(world_buffer, &world_packet->header);
-
+		
+		//OSSERVAZIONE, DOVREI MANDARLA A TUTTI I CLIENT!
 		sendto(udp_socket, world_buffer, world_buffer_size , 0 , (struct sockaddr *) &udp_client_addr, udp_sockaddr_len);
 		printf("%s SEND WORLD UPDATE TO CLIENT %d\n", UDP_SOCKET_NAME, id);
 	}

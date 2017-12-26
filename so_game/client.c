@@ -25,9 +25,11 @@ int window;
 WorldViewer viewer;
 World world;
 Vehicle* vehicle;
+int numb_of_vehicles;
 
 
 typedef struct {
+  Image *texture;
   volatile int run;
   int id;
 } UpdaterArgs;
@@ -70,6 +72,8 @@ int main(int argc, char **argv) {
 	//   -send your texture to the server (so that all can see you)
 	//   -get an elevation map
 	//   -get the texture of the surface
+	
+	numb_of_vehicles = 0;
 
 	// these come from the server
 	int my_id = -1;
@@ -177,8 +181,10 @@ int main(int argc, char **argv) {
 	// construct the world
 	World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
 	vehicle=(Vehicle*) malloc(sizeof(Vehicle));
+	
 	Vehicle_init(vehicle, &world, my_id, my_texture_from_server);
 	World_addVehicle(&world, vehicle);
+	numb_of_vehicles += 1;
 	
 	
 	// spawn a thread that will listen the update messages from
@@ -194,6 +200,7 @@ int main(int argc, char **argv) {
 	pthread_t runner_thread;
 	pthread_attr_t runner_attrs;
 	UpdaterArgs runner_args={
+		.texture = my_texture_from_server,
 		.run=1,
 		.id = my_id
 	};
@@ -263,8 +270,22 @@ void *updater_thread(void *arg) {
 		ret = recvfrom(s, world_buffer, sizeof(world_buffer), 0, (struct sockaddr *) &si_other, (socklen_t *) &slen);
 		ERROR_HELPER(ret, "Cannot recv from server");
 		
-		WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, sizeof(world_buffer));
-		printf("%s Number of vehicles in the game: %d\n",UDP_SOCKET_NAME, deserialized_wu_packet->num_vehicles); 
+		WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, sizeof(world_buffer));		
+		printf("my id = %d, v->id = %d\n", _arg->id, deserialized_wu_packet->updates->id);
+		Vehicle *v = World_getVehicle(&world, deserialized_wu_packet->updates->id);
+		
+		if(v == NULL) {
+			v = (Vehicle*) malloc(sizeof(Vehicle));
+			Vehicle_init(v, &world, deserialized_wu_packet->updates->id, _arg->texture);
+			World_addVehicle(&world, v);
+		}
+		//Mi garantisco che non è il mio, quindi aggiorno il veicolo corrispondente
+		else if (v->id != vehicle->id) {
+
+			v-> x = deserialized_wu_packet->updates->x;
+			v->y = deserialized_wu_packet->updates->y;
+			v->theta = deserialized_wu_packet->updates->theta;
+		}
 		
 		sleep(2);
 		//usleep(30000);
