@@ -239,13 +239,14 @@ void *updater_thread(void *arg) {
 	struct sockaddr_in si_other;
     int ret, s, slen=sizeof(si_other);
     
-    s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    s=socket(AF_INET, SOCK_DGRAM, 0);
     
     memset((char *) &si_other, 0, sizeof(si_other));
     si_other.sin_family = AF_INET;
     si_other.sin_port = htons(UDP_PORT);
+    si_other.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);	
     
-    inet_aton(SERVER_ADDRESS , &si_other.sin_addr);	
+
 
 	while(_arg->run) {
 	
@@ -267,13 +268,18 @@ void *updater_thread(void *arg) {
 
 		
         char world_buffer[BUFLEN];
-		ret = recvfrom(s, world_buffer, sizeof(world_buffer), 0, (struct sockaddr *) &si_other, (socklen_t *) &slen);
+		ret = recvfrom(s, world_buffer, sizeof(world_buffer), 0, (struct sockaddr *) &si_other, (socklen_t*) &slen);
 		ERROR_HELPER(ret, "Cannot recv from server");
 		
 		WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, ret);		
-		printf("v->id = %d\n", deserialized_wu_packet->updates->id);
+		int i;
+		printf("Number of vehicles: %d\n", deserialized_wu_packet->num_vehicles);
+		for(i=0; i<deserialized_wu_packet->num_vehicles; i++)
+			printf("v[%d]->id = %d\n",i ,deserialized_wu_packet->updates[0].id);
+	
 		Vehicle *v = World_getVehicle(&world, deserialized_wu_packet->updates->id);
 		
+		/**
 		if(v == NULL) {
 			v = (Vehicle*) malloc(sizeof(Vehicle));
 			Vehicle_init(v, &world, deserialized_wu_packet->updates->id, _arg->texture);
@@ -286,7 +292,7 @@ void *updater_thread(void *arg) {
 			printf("v->y = %f\n", deserialized_wu_packet->updates->y);
 			printf("v->theta = %f\n", deserialized_wu_packet->updates->theta);
 		}
-		
+		**/
 		sleep(2);
 		//usleep(30000);
 	}

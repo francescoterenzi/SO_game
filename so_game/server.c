@@ -205,7 +205,7 @@ void *tcp_handler(void *arg) {
 
 void *tcp_client_handler(void *arg){
 	thread_args* args = (thread_args*)arg;
-	int id = args->id;
+	
 	int socket_desc = args->socket_desc;
 
     int ret;
@@ -220,10 +220,10 @@ void *tcp_client_handler(void *arg){
 	// Send to the client the assigned id
 	IdPacket* to_send = (IdPacket*)malloc(sizeof(IdPacket));
 	to_send->header = packet_from_client->header;
-	to_send->id = id;	
+	to_send->id = args->id;	
 	
 	sendToClient(socket_desc, &to_send->header); 
-	if(DEBUG) printf("%s ASSIGNED ID TO CLIENT %d\n", TCP_SOCKET_NAME, id);
+	if(DEBUG) printf("%s ASSIGNED ID TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 	
 	
     // AFTER THE CLIENT REQUESTED THE WORLD MAP, WE SEND THE NEEDED TEXTURES	
@@ -233,9 +233,6 @@ void *tcp_client_handler(void *arg){
 	ret = receiveFromClient(socket_desc , buf);
 	
 	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(buf , ret);
-	
-	int client_id = image_packet->id;
-	///Image* client_image = image_packet->image;
 
 		
 	
@@ -245,10 +242,10 @@ void *tcp_client_handler(void *arg){
 	
 	ImagePacket * elevation_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
 	elevation_packet->header = elevation_header;
-	elevation_packet->id = 0;
+	elevation_packet->id = args->id;
 	elevation_packet->image = surface_elevation;
 	
-	if(DEBUG) printf("%s SENDING SURFACE ELEVATION TO CLIENT %d\n", TCP_SOCKET_NAME, id);
+	if(DEBUG) printf("%s SENDING SURFACE ELEVATION TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 	
 	sendToClient(socket_desc, &elevation_packet->header);
 	
@@ -259,10 +256,10 @@ void *tcp_client_handler(void *arg){
 	
 	ImagePacket * texture_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
 	texture_packet->header = texture_header;
-	texture_packet->id = 0;
+	texture_packet->id = args->id;
 	texture_packet->image = surface_texture;
 	
-	if(DEBUG) printf("%s SENDING SURFACE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, id);
+	if(DEBUG) printf("%s SENDING SURFACE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 
 	sendToClient(socket_desc, &texture_packet->header);
 	
@@ -275,18 +272,20 @@ void *tcp_client_handler(void *arg){
 	
 	ImagePacket * vehicle_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
 	vehicle_packet->header = vehicle_header;
-	vehicle_packet->id = client_id;
+	vehicle_packet->id = args->id;
 	vehicle_packet->image = vehicle_texture;
 	
-	if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, id);
+	if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 	
 	sendToClient(socket_desc, &vehicle_packet->header);
 	
 	
-	if(DEBUG) printf("%s ALL TEXTURES SENT TO CLIENT %d\n", TCP_SOCKET_NAME, id);
+	if(DEBUG) printf("%s ALL TEXTURES SENT TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 	
+	
+	// INSERISCO IL CLIENT NEL MONDO
 	Vehicle *vehicle=(Vehicle*) malloc(sizeof(Vehicle));
-	Vehicle_init(vehicle, &world, client_id, vehicle_texture);
+	Vehicle_init(vehicle, &world, args->id, vehicle_texture);
 	World_addVehicle(&world, vehicle);
 	
 	/*
@@ -305,8 +304,13 @@ void *tcp_client_handler(void *arg){
 	}
 	
 	
-	printf("%s CLIENT %d CLOSED THE GAME\n", TCP_SOCKET_NAME, id);
+	printf("%s CLIENT %d CLOSED THE GAME\n", TCP_SOCKET_NAME, args->id);
 	ret = close(socket_desc);
+	
+	//TO DO
+	// RINTRACCIO IL VEICOLO DAL MONDO
+	// RIMUOVO IL VEICOLO
+	
     ERROR_HELPER(ret, "Cannot close socket for incoming connection");
 	
     free(args);
@@ -323,7 +327,7 @@ void *udp_handler(void *arg) {
 	int udp_socket, res, udp_sockaddr_len = sizeof(udp_client_addr);
 
 	// create the socket
-	udp_socket=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	udp_socket=socket(AF_INET, SOCK_DGRAM, 0);
 	ERROR_HELPER(udp_socket, "Could not create the udp_socket");
 
 	// zero the memory
@@ -336,7 +340,7 @@ void *udp_handler(void *arg) {
 
 	//bind the socket to port
 	res = bind(udp_socket , (struct sockaddr*)&si_me, sizeof(si_me));
-	ERROR_HELPER(udp_socket, "Could not bind the udp_socket");
+	ERROR_HELPER(res, "Could not bind the udp_socket");
 
 	//Listening on port 3000
 	while(1) {
@@ -347,31 +351,38 @@ void *udp_handler(void *arg) {
 		res = recvfrom(udp_socket, vehicle_buffer, sizeof(vehicle_buffer), 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
 		ERROR_HELPER(res, "Cannot recieve from the client");
 		VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(vehicle_buffer, sizeof(vehicle_buffer));
-		int id = deserialized_vehicle_packet->id;
-		printf("%s RECEIVED VEHICLE UPDATE FROM CLIENT %d\n", UDP_SOCKET_NAME, id);
+		
+		int vehicle_id = deserialized_vehicle_packet->id;
+		printf("%s RECEIVED VEHICLE UPDATE FROM CLIENT %d\n", UDP_SOCKET_NAME, vehicle_id);
+		
+		// AGGIORNO IL VEICOLO CORRISPONDENTE
+		Vehicle* v = World_getVehicle(&world, vehicle_id);
+		v->rotational_force = deserialized_vehicle_packet->rotational_force;
+		v->translational_force = deserialized_vehicle_packet->translational_force; 
 
 
-		ClientUpdate* update_block = (ClientUpdate*)malloc(sizeof(ClientUpdate));
-		Vehicle *v = World_getVehicle(&world, id);
-		update_block->id = id;
-		update_block->x = v->x;
-	    update_block->y = v->y;
-        update_block->theta = v->z;
   
 		WorldUpdatePacket* world_packet = (WorldUpdatePacket*)malloc(sizeof(WorldUpdatePacket));
 		PacketHeader w_head;
 		w_head.type = WorldUpdate;
-
 		world_packet->header = w_head;
-		world_packet->num_vehicles = numb_of_clients;
-		world_packet->updates = update_block;
-
+		
+		
+		world_packet->num_vehicles = world.vehicles.size;
+		
+		ClientUpdate* update_block = (ClientUpdate*)malloc(world_packet->num_vehicles*sizeof(ClientUpdate));
+		update_block[0].id = v->id;
+		update_block[0].x = v->x;
+		update_block[0].y = v->y;			
+		update_block[0].theta = v->theta;
+		
+		world_packet->updates = update_block;    	
 
 		char world_buffer[BUFLEN];
 		int world_buffer_size = Packet_serialize(world_buffer, &world_packet->header);
 		
 		//OSSERVAZIONE, DOVREI MANDARLA A TUTTI I CLIENT!
-		sendto(udp_socket, world_buffer, world_buffer_size , 0 , (struct sockaddr *) &udp_client_addr, udp_sockaddr_len);
+		sendto(udp_socket, world_buffer, world_buffer_size , 0 , (struct sockaddr *) &udp_client_addr, (socklen_t) udp_sockaddr_len);
 	}
 	return NULL;
 }

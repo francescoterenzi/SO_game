@@ -100,9 +100,10 @@ int main(int argc, char const *argv[]) {
   world_packet->num_vehicles = 2;
   world_packet->updates = update_block;
   
-  printf("world_packet with:\ntype\t%d\nsize\t%d\n",
+  printf("world_packet with:\ntype\t%d\nsize\t%d\nid\t%d\n",
       world_packet->header.type,
-      world_packet->header.size);
+      world_packet->header.size,
+      world_packet->updates->id);
 
 
   printf("serialize\n");
@@ -113,9 +114,10 @@ int main(int argc, char const *argv[]) {
   printf("deserialize\n");
   WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, world_buffer_size);
 
-  printf("deserialized packet with:\ntype\t%d\nsize\t%d\n",
+  printf("deserialized packet with:\ntype\t%d\nsize\t%d\nid\t%d\n",
       deserialized_wu_packet->header.type,
-      deserialized_wu_packet->header.size);
+      deserialized_wu_packet->header.size,
+      deserialized_wu_packet->updates->id);
 
   Packet_free(&world_packet->header);
   Packet_free(&deserialized_wu_packet->header);
