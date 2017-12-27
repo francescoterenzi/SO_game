@@ -372,7 +372,6 @@ void *udp_handler(void *arg) {
 		
 		//OSSERVAZIONE, DOVREI MANDARLA A TUTTI I CLIENT!
 		sendto(udp_socket, world_buffer, world_buffer_size , 0 , (struct sockaddr *) &udp_client_addr, udp_sockaddr_len);
-		printf("%s SEND WORLD UPDATE TO CLIENT %d\n", UDP_SOCKET_NAME, id);
 	}
 	return NULL;
 }

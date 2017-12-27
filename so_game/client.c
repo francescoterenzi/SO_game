@@ -270,8 +270,8 @@ void *updater_thread(void *arg) {
 		ret = recvfrom(s, world_buffer, sizeof(world_buffer), 0, (struct sockaddr *) &si_other, (socklen_t *) &slen);
 		ERROR_HELPER(ret, "Cannot recv from server");
 		
-		WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, sizeof(world_buffer));		
-		printf("my id = %d, v->id = %d\n", _arg->id, deserialized_wu_packet->updates->id);
+		WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, ret);		
+		printf("v->id = %d\n", deserialized_wu_packet->updates->id);
 		Vehicle *v = World_getVehicle(&world, deserialized_wu_packet->updates->id);
 		
 		if(v == NULL) {
@@ -280,11 +280,11 @@ void *updater_thread(void *arg) {
 			World_addVehicle(&world, v);
 		}
 		//Mi garantisco che non è il mio, quindi aggiorno il veicolo corrispondente
-		else if (v->id != vehicle->id) {
-
-			v-> x = deserialized_wu_packet->updates->x;
-			v->y = deserialized_wu_packet->updates->y;
-			v->theta = deserialized_wu_packet->updates->theta;
+		if (v->id != vehicle->id) {
+			
+			printf("v-> x = %f\n", deserialized_wu_packet->updates->x);
+			printf("v->y = %f\n", deserialized_wu_packet->updates->y);
+			printf("v->theta = %f\n", deserialized_wu_packet->updates->theta);
 		}
 		
 		sleep(2);
