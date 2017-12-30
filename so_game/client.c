@@ -275,7 +275,7 @@ void *updater_thread(void *arg) {
 		int i;
 		printf("Number of vehicles: %d\n", deserialized_wu_packet->num_vehicles);
 		for(i=0; i<deserialized_wu_packet->num_vehicles; i++)
-			printf("v[%d]->id = %d\n",i ,deserialized_wu_packet->updates[0].id);
+			printf("v->id = %d\n",deserialized_wu_packet->updates->id);
 	
 		Vehicle *v = World_getVehicle(&world, deserialized_wu_packet->updates->id);
 		

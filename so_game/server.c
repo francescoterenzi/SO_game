@@ -371,10 +371,10 @@ void *udp_handler(void *arg) {
 		world_packet->num_vehicles = world.vehicles.size;
 		
 		ClientUpdate* update_block = (ClientUpdate*)malloc(world_packet->num_vehicles*sizeof(ClientUpdate));
-		update_block[0].id = v->id;
-		update_block[0].x = v->x;
-		update_block[0].y = v->y;			
-		update_block[0].theta = v->theta;
+		update_block->id = v->id;
+		update_block->x = v->x;
+		update_block->y = v->y;			
+		update_block->theta = v->theta;
 		
 		world_packet->updates = update_block;    	
 
