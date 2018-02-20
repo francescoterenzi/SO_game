@@ -157,7 +157,7 @@ int Image_toTexture(Image* src) {
   if (src->type!=RGB8)
     return -1;
    unsigned int surface_texture;
-   printf("loading texture in system\n");
+   //printf("loading texture in system\n");
    glGenTextures(1, &surface_texture);
    glBindTexture(GL_TEXTURE_2D, surface_texture);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -171,7 +171,7 @@ int Image_toTexture(Image* src) {
 
 void Surface_applyTexture(Surface* s, Image* img) {
   s->texture=img;
-  printf("applying texture %p to surface %p\n", img, s);
+  //printf("applying texture %p to surface %p\n", img, s);
   s->_destructor=Surface_destructor;
   if (s->gl_list>-1)
     glDeleteLists(s->gl_list, 1);
@@ -259,7 +259,7 @@ void Vehicle_draw(Vehicle* v){
 
 void Vehicle_applyTexture(Vehicle* v, Image* img) {
   v->texture=img;
-  printf("applying texture %p to vehicle %p\n", img, v);
+  //printf("applying texture %p to vehicle %p\n", img, v);
   v->_destructor=Vehicle_destructor;
   if (v->gl_list>-1)
     glDeleteLists(v->gl_list, 1);

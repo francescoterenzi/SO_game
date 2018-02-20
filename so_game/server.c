@@ -34,72 +34,31 @@ typedef struct thread_args {
 	int socket_desc;	
 } thread_args;
 
-typedef struct Client {
-	int id;	
-} Client;
-
-
-
 World world;
 Image* surface_texture;
 Image* surface_elevation;
 Image* vehicle_texture;
 
-Client** clients;
 int id;
-int numb_of_clients;
-
-
-
-/**  TO REMEMBER	
- * Alla fine, prima di chiudere il server bisogna rilasciare la memoria
- *   - void Packet_free(PacketHeader* h);
- *   - void Image_free(Image* img);
- *   - free(...) varie
- * **/
-
-
 
 int main(int argc, char **argv) {
+	
 	if (argc<3) {
 	printf("usage: %s <elevation_image> <texture_image>\n", argv[1]);
 		exit(-1);
 	}
+
 	char* elevation_filename=argv[1];
-	
 	char* texture_filename=argv[2];
 	char* vehicle_texture_filename="./images/arrow-right.ppm";
-	printf("loading elevation image from %s ... ", elevation_filename);
-
+	
 	// load the images
 	surface_elevation = Image_load(elevation_filename);
-	if (surface_elevation) {
-		printf("Done! \n");
-	} else {
-		printf("Fail! \n");
-	}
-
-
-	printf("loading texture image from %s ... ", texture_filename);
 	surface_texture = Image_load(texture_filename);
-	if (surface_texture) {
-		printf("Done! \n");
-	} else {
-		printf("Fail! \n");
-	}
-
-	printf("loading vehicle texture (default) from %s ... ", vehicle_texture_filename);
 	vehicle_texture = Image_load(vehicle_texture_filename);
-	if (vehicle_texture) {
-		printf("Done! \n");
-	} else {
-		printf("Fail! \n");
-	}
 	
-	// Qui creo un array di clients, dove la size massima è MAX_CONN_QUEUE
-	clients = (Client**) malloc(MAX_CONN_QUEUE*sizeof(Client*));
 	
-	//CREO IL MONDO
+	// creating the world
 	World_init(&world, surface_elevation, surface_texture, 0.5, 0.5, 0.5);
 	
 	int ret;
@@ -162,7 +121,6 @@ void *tcp_handler(void *arg) {
 
 	id = 1;
 
-	numb_of_clients = 0;
 	while (1) {		
 		
 		// accept incoming connection
@@ -170,27 +128,16 @@ void *tcp_handler(void *arg) {
 		if (client_desc == -1 && errno == EINTR)
 			continue; // check for interruption by signals
 		ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
-		numb_of_clients += 1;
-
-		//if (DEBUG) fprintf(stderr, "Incoming connection accepted...\n");
-		
-		
-		// La connessione è stata accettata, ora creo una struct con tutte le informazioni utili per il client e me la salvo
-		// OSS. Il thread_handler si può anche omettere, possiamo ricavare ciò che ci serve grazie al client_id
-		Client* client = (Client*) malloc(sizeof(Client));
-		client->id = id;
-		clients[id] = client;
-		printf("Client [%d] created\n",id);
 		
 		pthread_t thread;
 		thread_args* args = (thread_args*)malloc(sizeof(thread_args));
 		args->socket_desc = client_desc;
 		args->id = id; //here I set id for the client
-		id = id + 1;
+
+		id++;
 		
 		ret = pthread_create(&thread, NULL, tcp_client_handler, (void*)args);
 		PTHREAD_ERROR_HELPER(ret, "Could not create a new thread");
-
 
 		ret = pthread_detach(thread); 
 	    PTHREAD_ERROR_HELPER(ret, "Could not detach the thread");
@@ -209,12 +156,11 @@ void *tcp_client_handler(void *arg){
 	int socket_desc = args->socket_desc;
 
     int ret;
-    char* buf = (char*)malloc(sizeof(char) * BUFLEN);
+    char* buf = (char*) malloc(BUFLEN);
     clear(buf);
 	
 	// receiving id request
 	ret = receiveFromClient(socket_desc , buf);
-	
 	IdPacket* packet_from_client = (IdPacket*)Packet_deserialize(buf , ret);
 	
 	// Send to the client the assigned id
@@ -231,9 +177,10 @@ void *tcp_client_handler(void *arg){
 	
 	// receiving textures request
 	ret = receiveFromClient(socket_desc , buf);
-	
 	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(buf , ret);
 
+	// client ha scelto un immagine, la sostituiamo a quella standard
+	if(image_packet->image) vehicle_texture = image_packet->image; 
 		
 	
 	// send surface elevation	
@@ -288,29 +235,24 @@ void *tcp_client_handler(void *arg){
 	Vehicle_init(vehicle, &world, args->id, vehicle_texture);
 	World_addVehicle(&world, vehicle);
 	
-	/*
+	/**
 	Packet_free(&texture_packet->header);
 	Packet_free(&elevation_packet->header);
 	Packet_free(&vehicle_packet->header);
-	*/
-	
+	**/
+
 	//qui verifichiamo se il client chiude la connessione
 	while(1) {
 		ret = receiveFromClient(socket_desc, NULL);
-		if(ret == 0) {
-			numb_of_clients -= 1;
-			break;
-		}
+		if(ret == 0) break;
 	}
 	
 	
 	printf("%s CLIENT %d CLOSED THE GAME\n", TCP_SOCKET_NAME, args->id);
+	
+	World_detachVehicle(&world, vehicle);
+
 	ret = close(socket_desc);
-	
-	//TO DO
-	// RINTRACCIO IL VEICOLO DAL MONDO
-	// RIMUOVO IL VEICOLO
-	
     ERROR_HELPER(ret, "Cannot close socket for incoming connection");
 	
     free(args);
@@ -353,13 +295,12 @@ void *udp_handler(void *arg) {
 		VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(vehicle_buffer, sizeof(vehicle_buffer));
 		
 		int vehicle_id = deserialized_vehicle_packet->id;
-		printf("%s RECEIVED VEHICLE UPDATE FROM CLIENT %d\n", UDP_SOCKET_NAME, vehicle_id);
 		
-		// AGGIORNO IL VEICOLO CORRISPONDENTE
 		Vehicle* v = World_getVehicle(&world, vehicle_id);
-		v->rotational_force = deserialized_vehicle_packet->rotational_force;
-		v->translational_force = deserialized_vehicle_packet->translational_force; 
+		v->rotational_force_update = deserialized_vehicle_packet->rotational_force;
+		v->translational_force_update = deserialized_vehicle_packet->translational_force; 
 
+		World_update(&world);
 
   
 		WorldUpdatePacket* world_packet = (WorldUpdatePacket*)malloc(sizeof(WorldUpdatePacket));
@@ -371,10 +312,20 @@ void *udp_handler(void *arg) {
 		world_packet->num_vehicles = world.vehicles.size;
 		
 		ClientUpdate* update_block = (ClientUpdate*)malloc(world_packet->num_vehicles*sizeof(ClientUpdate));
-		update_block->id = v->id;
-		update_block->x = v->x;
-		update_block->y = v->y;			
-		update_block->theta = v->theta;
+		
+		ListItem *item = world.vehicles.first;
+
+		int i;
+		for(i=0; i<world.vehicles.size; i++) {
+
+			Vehicle *v = (Vehicle*) item;
+			update_block[i].id = v->id;
+			update_block[i].x = v->x;
+			update_block[i].y = v->y;			
+			update_block[i].theta = v->theta;
+
+			item = item->next;
+		}
 		
 		world_packet->updates = update_block;    	
 

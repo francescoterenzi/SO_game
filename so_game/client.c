@@ -21,11 +21,9 @@
 #include "common.h"
 
 
-int window;
 WorldViewer viewer;
 World world;
 Vehicle* vehicle;
-int numb_of_vehicles;
 
 
 typedef struct {
@@ -72,8 +70,6 @@ int main(int argc, char **argv) {
 	//   -send your texture to the server (so that all can see you)
 	//   -get an elevation map
 	//   -get the texture of the surface
-	
-	numb_of_vehicles = 0;
 
 	// these come from the server
 	int my_id = -1;
@@ -128,12 +124,13 @@ int main(int argc, char **argv) {
     
     ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
-	
 	if( (elevation_packet->header).type == PostElevation && elevation_packet->id == 0) {
 		if(DEBUG) printf("%s ELEVATION MAP RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
 		if(DEBUG) printf(" ERROR, elevation map not received!\n");
 	}
+
+	printf("type: %ud, id: %d\n", (elevation_packet->header).type, elevation_packet->id);
 	map_elevation = elevation_packet->image;
 	
 	Image_save(map_elevation , "./images_test/elevation_map_client.pgm");
@@ -184,7 +181,6 @@ int main(int argc, char **argv) {
 	
 	Vehicle_init(vehicle, &world, my_id, my_texture_from_server);
 	World_addVehicle(&world, vehicle);
-	numb_of_vehicles += 1;
 	
 	
 	// spawn a thread that will listen the update messages from
@@ -241,7 +237,6 @@ void *updater_thread(void *arg) {
     
     s=socket(AF_INET, SOCK_DGRAM, 0);
     
-    memset((char *) &si_other, 0, sizeof(si_other));
     si_other.sin_family = AF_INET;
     si_other.sin_port = htons(UDP_PORT);
     si_other.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);	
@@ -257,8 +252,8 @@ void *updater_thread(void *arg) {
 
 		vehicle_packet->header = v_head;
 		vehicle_packet->id = _arg->id;
-		vehicle_packet->rotational_force = vehicle->rotational_force;
-		vehicle_packet->translational_force = vehicle->translational_force;
+		vehicle_packet->rotational_force = vehicle->rotational_force_update;
+		vehicle_packet->translational_force = vehicle->translational_force_update;
 		
 		char vehicle_buffer[BUFLEN];
 		int vehicle_buffer_size = Packet_serialize(vehicle_buffer, &vehicle_packet->header);
@@ -272,29 +267,50 @@ void *updater_thread(void *arg) {
 		ERROR_HELPER(ret, "Cannot recv from server");
 		
 		WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, ret);		
+
+		int numb_of_vehicles = deserialized_wu_packet->num_vehicles;
+
+		if(numb_of_vehicles > world.vehicles.size) {
+			int i;
+			for(i=0; i<numb_of_vehicles; i++) {
+				int id = deserialized_wu_packet->updates[i].id;
+				if(World_getVehicle(&world, id) == NULL) {
+
+					Vehicle *v = (Vehicle*) malloc(sizeof(Vehicle)); 
+					Vehicle_init(v,&world, id, _arg->texture);
+					World_addVehicle(&world, v);
+					printf("%s new vehicle added with id: %d\n", UDP_SOCKET_NAME, id);
+				} 
+			}
+		}
+		else if(numb_of_vehicles < world.vehicles.size) {
+			ListItem *item = world.vehicles.first;
+			int i, j;
+			for(i=0; i<world.vehicles.size; i++) {
+				Vehicle *v = (Vehicle*) item;
+				int found = 0;
+				for(j=0; j<deserialized_wu_packet->num_vehicles; i++) {
+					if(v->id == deserialized_wu_packet->updates[i].id) {
+						found = 1;
+						break;
+					}
+				}
+				if(!found) World_detachVehicle(&world, v);
+				printf("%svehicle with id: %d removed\n", UDP_SOCKET_NAME, v->id);
+				item = item->next;	
+			}
+		}
+
 		int i;
-		printf("Number of vehicles: %d\n", deserialized_wu_packet->num_vehicles);
-		for(i=0; i<deserialized_wu_packet->num_vehicles; i++)
-			printf("v->id = %d\n",deserialized_wu_packet->updates->id);
-	
-		Vehicle *v = World_getVehicle(&world, deserialized_wu_packet->updates->id);
-		
-		/**
-		if(v == NULL) {
-			v = (Vehicle*) malloc(sizeof(Vehicle));
-			Vehicle_init(v, &world, deserialized_wu_packet->updates->id, _arg->texture);
-			World_addVehicle(&world, v);
-		}
-		//Mi garantisco che non è il mio, quindi aggiorno il veicolo corrispondente
-		if (v->id != vehicle->id) {
+		for(i=0; i<world.vehicles.size; i++) {
+			Vehicle *v = World_getVehicle(&world, deserialized_wu_packet->updates[i].id);
 			
-			printf("v-> x = %f\n", deserialized_wu_packet->updates->x);
-			printf("v->y = %f\n", deserialized_wu_packet->updates->y);
-			printf("v->theta = %f\n", deserialized_wu_packet->updates->theta);
+			v->x = deserialized_wu_packet->updates[i].x;
+			v->y = deserialized_wu_packet->updates[i].y;
+			v->theta = deserialized_wu_packet->updates[i].theta;
 		}
-		**/
-		sleep(2);
-		//usleep(30000);
+
+		usleep(300000);
 	}
 	return 0;
 }
