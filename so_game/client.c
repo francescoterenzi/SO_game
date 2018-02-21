@@ -64,12 +64,6 @@ int main(int argc, char **argv) {
 	
 	
 	Image* my_texture_for_server = my_texture;
-	
-	// todo: connect to the server
-	//   -get an id
-	//   -send your texture to the server (so that all can see you)
-	//   -get an elevation map
-	//   -get the texture of the surface
 
 	// these come from the server
 	int my_id = -1;
@@ -129,12 +123,7 @@ int main(int argc, char **argv) {
 	} else {
 		if(DEBUG) printf(" ERROR, elevation map not received!\n");
 	}
-
-	printf("type: %ud, id: %d\n", (elevation_packet->header).type, elevation_packet->id);
 	map_elevation = elevation_packet->image;
-	
-	Image_save(map_elevation , "./images_test/elevation_map_client.pgm");
-	
 	
 	// GET SURFACE TEXTURE
 	clear(buf);
@@ -148,10 +137,7 @@ int main(int argc, char **argv) {
 		if(DEBUG) printf(" ERROR, surface texture not received!\n");
 	}
     map_texture = texture_packet->image;
-    
-    Image_save(map_elevation , "./images_test/map_texture_client.ppm");
-    
-    
+
     // GET VEHICLE TEXTURE
 	clear(buf);
     ret = receiveFromServer(socket_desc , buf);
@@ -165,13 +151,6 @@ int main(int argc, char **argv) {
 	}
 	my_texture_from_server = vehicle_packet->image;
 	
-	Image_save(map_elevation , "./images_test/vehicle_texture_client.ppm");
-	
-	
-	
-	///if(DEBUG) printf(" map_texture: %s\n", map_texture->data);
-	///if(DEBUG) printf(" map_elevation: %s\n", map_elevation->data);
-	
 	if(DEBUG) printf("%s ALL TEXTURES RECEIVED\n", TCP_SOCKET_NAME);
 	
 	
@@ -181,15 +160,6 @@ int main(int argc, char **argv) {
 	
 	Vehicle_init(vehicle, &world, my_id, my_texture_from_server);
 	World_addVehicle(&world, vehicle);
-	
-	
-	// spawn a thread that will listen the update messages from
-	// the server, and sends back the controls
-	// the update for yourself are written in the desired_*_force
-	// fields of the vehicle variable
-	// when the server notifies a new player has joined the game
-	// request the texture and add the player to the pool
-	/*FILLME*/
 	
 	
 	/*** UDP PART NOTIFICATION ***/
