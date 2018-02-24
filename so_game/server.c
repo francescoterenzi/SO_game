@@ -27,6 +27,7 @@ void *tcp_client_handler(void *arg);
 void sendToClient(int socket_desc, PacketHeader* packet);
 int receiveFromClient(int socket_desc , char* msg);
 void clear(char* buf);
+WorldUpdatePacket *world_update_init(void);
 
 
 typedef struct thread_args {
@@ -304,31 +305,7 @@ void *udp_handler(void *arg) {
 		World_update(&world);
 
   
-		WorldUpdatePacket* world_packet = (WorldUpdatePacket*)malloc(sizeof(WorldUpdatePacket));
-		PacketHeader w_head;
-		w_head.type = WorldUpdate;
-		world_packet->header = w_head;
-		
-		
-		world_packet->num_vehicles = world.vehicles.size;
-		
-		ClientUpdate* update_block = (ClientUpdate*)malloc(world_packet->num_vehicles*sizeof(ClientUpdate));
-		
-		ListItem *item = world.vehicles.first;
-
-		int i;
-		for(i=0; i<world.vehicles.size; i++) {
-
-			Vehicle *v = (Vehicle*) item;
-			update_block[i].id = v->id;
-			update_block[i].x = v->x;
-			update_block[i].y = v->y;			
-			update_block[i].theta = v->theta;
-
-			item = item->next;
-		}
-		
-		world_packet->updates = update_block;    	
+		WorldUpdatePacket* world_packet = world_update_init(); 	
 
 		char world_buffer[BUFLEN];
 		int world_buffer_size = Packet_serialize(world_buffer, &world_packet->header);
@@ -386,34 +363,32 @@ void clear(char* buf){
 	memset(buf , 0 , BUFLEN * sizeof(char));
 }
 
+WorldUpdatePacket *world_update_init() {
 
+	WorldUpdatePacket* world_packet = (WorldUpdatePacket*)malloc(sizeof(WorldUpdatePacket));
+	PacketHeader w_head;
+	w_head.type = WorldUpdate;
+	world_packet->header = w_head;
+	
+	
+	world_packet->num_vehicles = world.vehicles.size;
+	
+	ClientUpdate* update_block = (ClientUpdate*)malloc(world_packet->num_vehicles*sizeof(ClientUpdate));
+	
+	ListItem *item = world.vehicles.first;
 
-/**
-		// not needed here
-	// construct the world
-	// World_init(&world, surface_elevation, surface_texture,  0.5, 0.5, 0.5);
-	// // create a vehicle
-	// vehicle=(Vehicle*) malloc(sizeof(Vehicle));
-	// Vehicle_init(vehicle, &world, 0, vehicle_texture);
-	// // add it to the world
-	// World_addVehicle(&world, vehicle);
-	// // initialize GL
-	// glutInit(&argc, argv);
-	// glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-	// glutCreateWindow("main");
-	// // set the callbacks
-	// glutDisplayFunc(display);
-	// glutIdleFunc(idle);
-	// glutSpecialFunc(specialInput);
-	// glutKeyboardFunc(keyPressed);
-	// glutReshapeFunc(reshape);
-	// WorldViewer_init(&viewer, &world, vehicle);
-	// // run the main GL loop
-	// glutMainLoop();
-	// // check out the images not needed anymore
-	// Image_free(vehicle_texture);
-	// Image_free(surface_texture);
-	// Image_free(surface_elevation);
-	// // cleanup
-	// World_destroy(&world);
-**/
+	int i;
+	for(i=0; i<world.vehicles.size; i++) {
+
+		Vehicle *v = (Vehicle*) item;
+		update_block[i].id = v->id;
+		update_block[i].x = v->x;
+		update_block[i].y = v->y;			
+		update_block[i].theta = v->theta;
+
+		item = item->next;
+	}
+		
+	world_packet->updates = update_block;
+	return world_packet;
+}

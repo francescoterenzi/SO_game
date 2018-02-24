@@ -365,5 +365,4 @@ VehicleUpdatePacket* Vehicle_packet_init(int arg_id, float rotational_force, flo
 	vehicle_packet->translational_force = vehicle->translational_force_update;
 
 	return vehicle_packet;
-
 }
