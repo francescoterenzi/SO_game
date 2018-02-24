@@ -1,4 +1,3 @@
-#include <GL/glut.h> // not needed here
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -19,7 +18,7 @@
 #include "common.h"
 #include "linked_list.h"
 #include "so_game_protocol.h"
-#include "update_packet.h"
+#include "packet.h"
 #include "socket.h"
 
 
@@ -179,28 +178,16 @@ void *tcp_client_handler(void *arg){
 	if(image_packet->image) vehicle_texture = image_packet->image; 
 		
 	
-	// send surface elevation	
-	PacketHeader elevation_header;
-	elevation_header.type = PostElevation;
-	
-	ImagePacket * elevation_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	elevation_packet->header = elevation_header;
-	elevation_packet->id = 0;
-	elevation_packet->image = surface_elevation;
+	// send surface elevation		
+	ImagePacket * elevation_packet = image_packet_init(PostElevation, surface_elevation, 0);
 	
 	if(DEBUG) printf("%s SENDING SURFACE ELEVATION TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 	
 	tcp_send(socket_desc, &elevation_packet->header);
 	
 
-	// send surface texture
-	PacketHeader texture_header;
-	texture_header.type = PostTexture;
-	
-	ImagePacket * texture_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	texture_packet->header = texture_header;
-	texture_packet->id = 0;
-	texture_packet->image = surface_texture;
+	// send surface texture	
+	ImagePacket * texture_packet = image_packet_init(PostTexture, surface_texture, 0);
 	
 	if(DEBUG) printf("%s SENDING SURFACE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 
@@ -210,13 +197,7 @@ void *tcp_client_handler(void *arg){
 	 
 	
 	// send vehicle texture of the client client_id
-	PacketHeader vehicle_header;
-	vehicle_header.type = PostTexture;
-	
-	ImagePacket * vehicle_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	vehicle_packet->header = vehicle_header;
-	vehicle_packet->id = args->id;
-	vehicle_packet->image = vehicle_texture;
+	ImagePacket * vehicle_packet = image_packet_init(PostTexture, vehicle_texture, args->id);
 	
 	if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 	

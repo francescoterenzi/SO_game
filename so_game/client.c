@@ -18,15 +18,12 @@
 #include "world_viewer.h"
 #include "common.h"
 #include "so_game_protocol.h"
-#include "common.h"
-#include "update_packet.h"
+#include "packet.h"
 #include "socket.h"
-
 
 WorldViewer viewer;
 World world;
 Vehicle* vehicle;
-
 
 typedef struct {
   Image *texture;
@@ -93,12 +90,7 @@ int main(int argc, char **argv) {
 	
 	// SEND YOUR TEXTURE to the server (so that all can see you)
 	// server response should assign the surface texture, the surface elevation and the texture to vehicle
-	PacketHeader image_header;
-	image_header.type = PostTexture;
-	ImagePacket* image_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
-	image_packet->header = image_header;
-	image_packet->id = my_id;
-	image_packet->image = my_texture_for_server;
+	ImagePacket* image_packet = image_packet_init(PostTexture, my_texture_for_server, my_id);
 	
 	tcp_send(socket_desc , &image_packet->header);	
     
