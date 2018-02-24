@@ -20,13 +20,12 @@
 #include "linked_list.h"
 #include "so_game_protocol.h"
 #include "update_packet.h"
+#include "socket.h"
 
 
 void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
-void sendToClient(int socket_desc, PacketHeader* packet);
-int receiveFromClient(int socket_desc , char* msg);
 void clear(char* buf);
 
 
@@ -157,7 +156,7 @@ void *tcp_client_handler(void *arg){
     clear(buf);
 	
 	// receiving id request
-	ret = receiveFromClient(socket_desc , buf);
+	ret = tcp_receive(socket_desc , buf);
 	IdPacket* packet_from_client = (IdPacket*)Packet_deserialize(buf , ret);
 	
 	// Send to the client the assigned id
@@ -165,7 +164,7 @@ void *tcp_client_handler(void *arg){
 	to_send->header = packet_from_client->header;
 	to_send->id = args->id;	
 	
-	sendToClient(socket_desc, &to_send->header); 
+	tcp_send(socket_desc, &to_send->header); 
 	if(DEBUG) printf("%s ASSIGNED ID TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 	
 	
@@ -173,7 +172,7 @@ void *tcp_client_handler(void *arg){
 	clear(buf);
 	
 	// receiving textures request
-	ret = receiveFromClient(socket_desc , buf);
+	ret = tcp_receive(socket_desc , buf);
 	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(buf , ret);
 
 	// client ha scelto un immagine, la sostituiamo a quella standard
@@ -191,7 +190,7 @@ void *tcp_client_handler(void *arg){
 	
 	if(DEBUG) printf("%s SENDING SURFACE ELEVATION TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 	
-	sendToClient(socket_desc, &elevation_packet->header);
+	tcp_send(socket_desc, &elevation_packet->header);
 	
 
 	// send surface texture
@@ -205,7 +204,7 @@ void *tcp_client_handler(void *arg){
 	
 	if(DEBUG) printf("%s SENDING SURFACE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 
-	sendToClient(socket_desc, &texture_packet->header);
+	tcp_send(socket_desc, &texture_packet->header);
 	
 	
 	 
@@ -221,7 +220,7 @@ void *tcp_client_handler(void *arg){
 	
 	if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 	
-	sendToClient(socket_desc, &vehicle_packet->header);
+	tcp_send(socket_desc, &vehicle_packet->header);
 	
 	
 	if(DEBUG) printf("%s ALL TEXTURES SENT TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
@@ -240,7 +239,7 @@ void *tcp_client_handler(void *arg){
 
 	//qui verifichiamo se il client chiude la connessione
 	while(1) {
-		ret = receiveFromClient(socket_desc, NULL);
+		ret = tcp_receive(socket_desc, NULL);
 		if(ret == 0) break;
 	}
 	
@@ -305,48 +304,6 @@ void *udp_handler(void *arg) {
 		sendto(udp_socket, world_buffer, world_buffer_size , 0 , (struct sockaddr *) &udp_client_addr, (socklen_t) udp_sockaddr_len);
 	}
 	return NULL;
-}
-
-
-
-void sendToClient(int socket_desc, PacketHeader* packet){
-	int ret;	
-	char to_send[BUFLEN];
-	char len_to_send[BUFLEN];
-	
-	int len =  Packet_serialize(to_send, packet);
-	snprintf(len_to_send, BUFLEN , "%d", len);
-	
-	//if(DEBUG) printf("*** Bytes to send : %s ***\n" , len_to_send);
-	
-	ret = send(socket_desc, len_to_send, sizeof(long int) , 0);
-	ERROR_HELPER(ret, "Cannot send msg to the client");  
-	
-	ret = send(socket_desc, to_send, len , 0);
-	ERROR_HELPER(ret, "Cannot send msg to the client");  
-
-}
-
-int receiveFromClient(int socket_desc , char* msg){
-	int ret;
-	char len_to_receive[BUFLEN];
-	
-	ret = recv(socket_desc , len_to_receive , sizeof(long int) , 0);
-	ERROR_HELPER(ret, "Cannot receive from client");
-	
-	int received_bytes = 0;
-	int to_receive = atoi(len_to_receive);
-
-	
-	while(received_bytes < to_receive){
-		ret = recv(socket_desc , msg + received_bytes , to_receive - received_bytes , 0);
-	    ERROR_HELPER(ret, "Cannot receive from client");
-	    received_bytes += ret;
-	    //if(DEBUG) printf("*** Bytes received : %d ***\n" , ret);
-	    if(ret==0) break;
-	}
-
-	return received_bytes;
 }
 
 void clear(char* buf){

@@ -20,6 +20,7 @@
 #include "so_game_protocol.h"
 #include "common.h"
 #include "update_packet.h"
+#include "socket.h"
 
 
 WorldViewer viewer;
@@ -35,8 +36,6 @@ typedef struct {
 
 int connectToServer(void);
 void *updater_thread(void *arg);
-void sendToServer(int socket_desc, PacketHeader* header);
-int receiveFromServer(int socket_desc, char* msg);
 void clear(char* buf);
 void client_update(WorldUpdatePacket *deserialized_wu_packet);
 
@@ -81,10 +80,10 @@ int main(int argc, char **argv) {
 	id_packet->id = my_id;
 	
 	// Send id request
-	sendToServer(socket_desc , &id_packet->header);	
+	tcp_send(socket_desc , &id_packet->header);	
 	
 	//receiving id
-	ret = receiveFromServer(socket_desc , buf);
+	ret = tcp_receive(socket_desc , buf);
 	
 	// Id received!
 	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, ret); 
@@ -102,12 +101,12 @@ int main(int argc, char **argv) {
 	image_packet->id = my_id;
 	image_packet->image = my_texture_for_server;
 	
-	sendToServer(socket_desc , &image_packet->header);	
+	tcp_send(socket_desc , &image_packet->header);	
     
     
     // GET ELEVATION MAP    
     clear(buf);
-    ret = receiveFromServer(socket_desc , buf);
+    ret = tcp_receive(socket_desc , buf);
     
     ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
@@ -120,7 +119,7 @@ int main(int argc, char **argv) {
 	
 	// GET SURFACE TEXTURE
 	clear(buf);
-    ret = receiveFromServer(socket_desc , buf); 
+    ret = tcp_receive(socket_desc , buf); 
 
     ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
@@ -133,7 +132,7 @@ int main(int argc, char **argv) {
 
     // GET VEHICLE TEXTURE
 	clear(buf);
-    ret = receiveFromServer(socket_desc , buf);
+    ret = tcp_receive(socket_desc , buf);
 
     ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
     
@@ -187,9 +186,6 @@ int main(int argc, char **argv) {
 	return 0;             
 }
 
-
-
-
 void *updater_thread(void *arg) {
 	
 	UpdaterArgs* _arg = (UpdaterArgs*) arg;
@@ -231,9 +227,6 @@ void *updater_thread(void *arg) {
 	return 0;
 }
 
-
-
-
 int connectToServer(void){
 	int ret;
 
@@ -259,51 +252,9 @@ int connectToServer(void){
 	return socket_desc;
 }
 
-
-
-void sendToServer(int socket_desc, PacketHeader* packet){
-	int ret;	
-	char to_send[BUFLEN];
-	char len_to_send[BUFLEN];
-	
-	int len =  Packet_serialize(to_send, packet);
-	snprintf(len_to_send, BUFLEN , "%d", len);
-	
-	//if(DEBUG) printf("*** Bytes to send : %s ***\n" , len_to_send);
-	
-	ret = send(socket_desc, len_to_send, sizeof(long int) , 0);
-	ERROR_HELPER(ret, "Cannot send msg to the server");  
-	
-	ret = send(socket_desc, to_send, len , 0);
-	ERROR_HELPER(ret, "Cannot send msg to the server");  
-
-}
-
-int receiveFromServer(int socket_desc, char* msg){
-	int ret;
-	char len_to_receive[BUFLEN];
-	
-	ret = recv(socket_desc , len_to_receive , sizeof(long int) , 0);
-	ERROR_HELPER(ret, "Cannot receive from server");
-	
-	int received_bytes = 0;
-	int to_receive = atoi(len_to_receive);
-	
-	while(received_bytes < to_receive){
-		ret = recv(socket_desc , msg + received_bytes , to_receive - received_bytes , 0);
-	    //ERROR_HELPER(ret, "Cannot receive from server");
-	    received_bytes += ret;
-	    //if(DEBUG) printf("*** Bytes received : %d ***\n" , ret);
-	    if(ret==0) break;
-	}
-
-	return received_bytes;
-}
-
 void clear(char* buf){
 	memset(buf , 0 , BUFLEN * sizeof(char));
 }
-
 
 void client_update(WorldUpdatePacket *deserialized_wu_packet) {
 
