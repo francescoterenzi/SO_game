@@ -62,15 +62,17 @@ int tcp_receive(int socket_desc , char* msg){
 	
 	int received_bytes = 0;
 	int to_receive = atoi(len_to_receive);
+	if(DEBUG) printf("*** Bytes received : %d ***\n" , to_receive);
 
 	
 	while(received_bytes < to_receive){
 		ret = recv(socket_desc , msg + received_bytes , to_receive - received_bytes , 0);
 	    ERROR_HELPER(ret, "Cannot receive from client");
 	    received_bytes += ret;
-	    //if(DEBUG) printf("*** Bytes received : %d ***\n" , ret);
+	    
 	    if(ret==0) break;
 	}
+	if(DEBUG) printf("*** Bytes received : %d ***\n" , ret);
 
 	return received_bytes;
 }

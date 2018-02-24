@@ -132,3 +132,24 @@ void Packet_free(PacketHeader* h) {
   }
   }
 }
+
+IdPacket* IdPacket_build(int id, Type header_type){
+	PacketHeader id_header;
+	id_header.type = header_type;
+	
+	IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
+	id_packet->header = id_header;
+	id_packet->id = id;	
+	return id_packet;
+}
+
+ImagePacket* ImagePacket_build(Image* texture ,int id , Type header_type){
+	PacketHeader image_header;
+	image_header.type = header_type;
+	
+	ImagePacket* image_packet = (ImagePacket*)malloc(sizeof(ImagePacket));
+	image_packet->header = image_header;
+	image_packet->id = id;
+	image_packet->image = texture;
+	return image_packet;
+}
