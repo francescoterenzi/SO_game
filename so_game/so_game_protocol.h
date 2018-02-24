@@ -79,7 +79,3 @@ PacketHeader* Packet_deserialize(const char* buffer, int size);
 
 // deletes a packet, freeing memory
 void Packet_free(PacketHeader* h);
-
-// quick build of IdPacket and ImagePacket
-IdPacket* IdPacket_build(int id, Type header_type);
-ImagePacket* ImagePacket_build(Image* texture ,int id , Type header_type);

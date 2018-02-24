@@ -16,6 +16,16 @@ ImagePacket* image_packet_init(Type type, Image *image, int id) {
 	return packet;
 }
 
+IdPacket* id_packet_init(Type header_type, int id){
+	PacketHeader id_header;
+	id_header.type = header_type;
+	
+	IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
+	id_packet->header = id_header;
+	id_packet->id = id;	
+	return id_packet;
+}
+
 VehicleUpdatePacket* vehicle_update_init(World *world,int arg_id, float rotational_force, float translational_force) {
     
     VehicleUpdatePacket *vehicle_packet = (VehicleUpdatePacket*) malloc(sizeof(VehicleUpdatePacket));

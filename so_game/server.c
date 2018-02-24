@@ -1,3 +1,4 @@
+#include <GL/glut.h> // not needed here
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -15,9 +16,8 @@
 #include "world.h"
 #include "vehicle.h"
 #include "world_viewer.h"
-#include "common.h"
-#include "linked_list.h"
 #include "so_game_protocol.h"
+#include "common.h"
 #include "packet.h"
 #include "socket.h"
 
@@ -26,6 +26,7 @@ void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
 void clear(char* buf);
+void world_update(VehicleUpdatePacket *deserialized_vehicle_packet);
 
 
 typedef struct thread_args {
@@ -46,7 +47,6 @@ int main(int argc, char **argv) {
 	printf("usage: %s <elevation_image> <texture_image>\n", argv[1]);
 		exit(-1);
 	}
-
 
 	char* elevation_filename=argv[1];
 	char* texture_filename=argv[2];
@@ -84,34 +84,11 @@ int main(int argc, char **argv) {
 
 void *tcp_handler(void *arg) {
 	
-	int ret;
-	int socket_desc, client_desc;
-	
-	// some fields are required to be filled with 0
-	struct sockaddr_in server_addr = {0};
+	int ret, client_desc;
 
+	int socket_desc = tcp_server_setup();
 	int sockaddr_len = sizeof(struct sockaddr_in); // we will reuse it for accept()
 
-	// initialize socket for listening
-	socket_desc = socket(AF_INET, SOCK_STREAM, 0);
-	ERROR_HELPER(socket_desc, "Could not create socket");
-
-	server_addr.sin_addr.s_addr = INADDR_ANY; // we want to accept connections from any interface
-	server_addr.sin_family = AF_INET;
-	server_addr.sin_port = htons(TCP_PORT); // network byte order!
-
-	// We enable SO_REUSEADDR to quickly restart our server after a crash
-	int reuseaddr_opt = 1;
-	ret = setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt, sizeof(reuseaddr_opt));
-	ERROR_HELPER(ret, "Cannot set SO_REUSEADDR option");
-
-	// bind address to socket
-	ret = bind(socket_desc, (struct sockaddr *)&server_addr, sockaddr_len);
-	ERROR_HELPER(ret, "Cannot bind address to socket");
-	
-	// start listening
-	ret = listen(socket_desc, MAX_CONN_QUEUE);
-	ERROR_HELPER(ret, "Cannot listen on socket");
 
 	// we allocate client_addr dynamically and initialize it to zero
 	struct sockaddr_in *client_addr = calloc(1, sizeof(struct sockaddr_in));
@@ -150,61 +127,50 @@ void *tcp_client_handler(void *arg){
 	
 	int socket_desc = args->socket_desc;
 
-    int ret;
+    int ret, run = 1;
     char* buf = (char*) malloc(BUFLEN);
-    clear(buf);
-	
-	// receiving id request
-	ret = tcp_receive(socket_desc , buf);
-	IdPacket* packet_from_client = (IdPacket*)Packet_deserialize(buf , ret);
-	
-	// Send to the client the assigned id
-	IdPacket* to_send = (IdPacket*)malloc(sizeof(IdPacket));
-	to_send->header = packet_from_client->header;
-	to_send->id = args->id;	
-	
-	tcp_send(socket_desc, &to_send->header); 
-	if(DEBUG) printf("%s ASSIGNED ID TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
-	
-	
-    // AFTER THE CLIENT REQUESTED THE WORLD MAP, WE SEND THE NEEDED TEXTURES	
-	clear(buf);
-	
-	// receiving textures request
-	ret = tcp_receive(socket_desc , buf);
-	ImagePacket* image_packet = (ImagePacket*)Packet_deserialize(buf , ret);
+    
+    while(run) {
 
-	// client ha scelto un immagine, la sostituiamo a quella standard
-	if(image_packet->image) vehicle_texture = image_packet->image; 
+		clear(buf);
+		ret = tcp_receive(socket_desc , buf);
+		PacketHeader* packet_from_client = (PacketHeader*)Packet_deserialize(buf , ret);
 		
-	
-	// send surface elevation		
-	ImagePacket * elevation_packet = image_packet_init(PostElevation, surface_elevation, 0);
-	
-	if(DEBUG) printf("%s SENDING SURFACE ELEVATION TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
-	
-	tcp_send(socket_desc, &elevation_packet->header);
-	
+		if(packet_from_client->type == GetId) { //client requested the id			
+			IdPacket* id_packet = id_packet_init(GetId, args->id);
+			
+			tcp_send(socket_desc, &id_packet->header); 
+			if(DEBUG) printf("%s ASSIGNED ID TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
+		}
+		
+		else if(packet_from_client->type == GetElevation) {  //client requested the elevation map
+			ImagePacket* elevation_packet = image_packet_init(PostElevation, surface_elevation , 0);
+			
+			if(DEBUG) printf("%s SENDING ELEVATION TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
+			tcp_send(socket_desc, &elevation_packet->header);
+			
+		}
+		
+		else if(packet_from_client->type == GetTexture) {
+			ImagePacket* texture_packet = (ImagePacket*)packet_from_client;
+			
+			if(texture_packet->id == 0){  // Client requested surface texture
+				ImagePacket* surface_texture_packet = image_packet_init(PostTexture, surface_texture , 0);
+							
+				if(DEBUG) printf("%s SENDING SURFACE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
+				tcp_send(socket_desc, &surface_texture_packet->header);
+			}
+			else if(texture_packet->id > 0){ // Client requested vehicle texture
+				ImagePacket* vehicle_texture_packet = image_packet_init(PostTexture, vehicle_texture , texture_packet->id);
 
-	// send surface texture	
-	ImagePacket * texture_packet = image_packet_init(PostTexture, surface_texture, 0);
-	
-	if(DEBUG) printf("%s SENDING SURFACE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
-
-	tcp_send(socket_desc, &texture_packet->header);
-	
-	
-	 
-	
-	// send vehicle texture of the client client_id
-	ImagePacket * vehicle_packet = image_packet_init(PostTexture, vehicle_texture, args->id);
-	
-	if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
-	
-	tcp_send(socket_desc, &vehicle_packet->header);
-	
-	
+				if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
+				tcp_send(socket_desc, &vehicle_texture_packet->header);
+				run = 0;
+			}
+		}
+	}
 	if(DEBUG) printf("%s ALL TEXTURES SENT TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
+
 	
 	
 	// INSERISCO IL CLIENT NEL MONDO
@@ -240,53 +206,37 @@ void *tcp_client_handler(void *arg){
 void *udp_handler(void *arg) {
 	
 	struct sockaddr_in si_me, udp_client_addr;
-	int udp_socket, res, udp_sockaddr_len = sizeof(udp_client_addr);
+	int udp_socket = udp_server_setup(&si_me);
+	
+	int res;
+	char buffer[BUFLEN];
 
-	// create the socket
-	udp_socket=socket(AF_INET, SOCK_DGRAM, 0);
-	ERROR_HELPER(udp_socket, "Could not create the udp_socket");
-
-	// zero the memory
-	memset((char *) &si_me, 0, sizeof(si_me));
-
-	si_me.sin_family = AF_INET;
-	si_me.sin_port = htons(UDP_PORT);
-	si_me.sin_addr.s_addr = htonl(INADDR_ANY);
-
-
-	//bind the socket to port
-	res = bind(udp_socket , (struct sockaddr*)&si_me, sizeof(si_me));
-	ERROR_HELPER(res, "Could not bind the udp_socket");
-
-	//Listening on port 3000
 	while(1) {
-		
-		// udp riceve il pacchetto dal client, aggiorna i suoi dati e lo rimanda
-		 
-		char vehicle_buffer[BUFLEN];
-		res = recvfrom(udp_socket, vehicle_buffer, sizeof(vehicle_buffer), 0, (struct sockaddr *) &udp_client_addr, (socklen_t *) &udp_sockaddr_len);
-		ERROR_HELPER(res, "Cannot recieve from the client");
-		VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(vehicle_buffer, sizeof(vehicle_buffer));
-		
-		int vehicle_id = deserialized_vehicle_packet->id;
-		
-		Vehicle* v = World_getVehicle(&world, vehicle_id);
-		v->rotational_force_update = deserialized_vehicle_packet->rotational_force;
-		v->translational_force_update = deserialized_vehicle_packet->translational_force; 
 
-		World_update(&world);
+		clear(buffer);
+		res = udp_receive(udp_socket, &udp_client_addr, buffer);
 
-		WorldUpdatePacket* world_packet = world_update_init(&world); 	
-
-		char world_buffer[BUFLEN];
-		int world_buffer_size = Packet_serialize(world_buffer, &world_packet->header);
+		VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
+		world_update(deserialized_vehicle_packet);
+		WorldUpdatePacket* world_packet = world_update_init(&world);	
 		
-		//OSSERVAZIONE, DOVREI MANDARLA A TUTTI I CLIENT!
-		sendto(udp_socket, world_buffer, world_buffer_size , 0 , (struct sockaddr *) &udp_client_addr, (socklen_t) udp_sockaddr_len);
+		udp_send(udp_socket, &udp_client_addr, &world_packet->header);
 	}
 	return NULL;
 }
 
 void clear(char* buf){
 	memset(buf , 0 , BUFLEN * sizeof(char));
+}
+
+void world_update(VehicleUpdatePacket *deserialized_vehicle_packet) {
+	
+	int vehicle_id = deserialized_vehicle_packet->id;
+		
+	Vehicle* v = World_getVehicle(&world, vehicle_id);
+	v->rotational_force_update = deserialized_vehicle_packet->rotational_force;
+	v->translational_force_update = deserialized_vehicle_packet->translational_force; 
+
+	World_update(&world);
+
 }

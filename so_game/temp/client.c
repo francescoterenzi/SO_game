@@ -21,11 +21,9 @@
 #include "packet.h"
 #include "socket.h"
 
-
 WorldViewer viewer;
 World world;
 Vehicle* vehicle;
-
 
 typedef struct {
   Image *texture;
@@ -33,10 +31,10 @@ typedef struct {
   int id;
 } UpdaterArgs;
 
-int connectToServer(void);
 void *updater_thread(void *arg);
 void clear(char* buf);
 void client_update(WorldUpdatePacket *deserialized_wu_packet);
+
 
 int main(int argc, char **argv) {
 	if (argc<3) {
@@ -53,7 +51,7 @@ int main(int argc, char **argv) {
 	}
 	
 	
-	///Image* my_texture_for_server = my_texture;
+	Image* my_texture_for_server = my_texture;
 
 	// these come from the server
 	int my_id = -1;
@@ -62,31 +60,43 @@ int main(int argc, char **argv) {
 	Image* my_texture_from_server; //vehicle texture
 	
 	char* buf = (char*)malloc(sizeof(char) * BUFLEN);
+	clear(buf);
 	
+	//initiate a connection on the socket
+	int socket_desc = tcp_client_setup();	
 	
-	
-	int socket_desc = tcp_client_setup();	//initiate a connection on the socket	
 	int ret;
 	
-	// REQUEST AND GET AN ID
-	clear(buf);
-	IdPacket* id_packet = id_packet_init(GetId, my_id);	
-
-	tcp_send(socket_desc , &id_packet->header);	     // Requesting id
-	ret = tcp_receive(socket_desc , buf);          // Receiving id
+	// GET AN ID
+	PacketHeader id_header;
+	id_header.type = GetId;
 	
-	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, ret); // Id received!
+	IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
+	id_packet->header = id_header;
+	id_packet->id = my_id;
+	
+	// Send id request
+	tcp_send(socket_desc , &id_packet->header);	
+	
+	//receiving id
+	ret = tcp_receive(socket_desc , buf);
+	
+	// Id received!
+	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, ret); 
 	my_id = received_packet->id;
 	
 	if(DEBUG) printf("Id received : %d\n", my_id);
-
-
-
-    // REQUEST AND GET ELEVATION MAP    
+	
+	
+	// SEND YOUR TEXTURE to the server (so that all can see you)
+	// server response should assign the surface texture, the surface elevation and the texture to vehicle
+	ImagePacket* image_packet = image_packet_init(PostTexture, my_texture_for_server, my_id);
+	
+	tcp_send(socket_desc , &image_packet->header);	
+    
+    
+    // GET ELEVATION MAP    
     clear(buf);
-    ImagePacket* elevationImage_packet = image_packet_init(GetElevation, NULL, 0);
-    tcp_send(socket_desc , &elevationImage_packet->header);
-       
     ret = tcp_receive(socket_desc , buf);
     
     ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
@@ -98,13 +108,8 @@ int main(int argc, char **argv) {
 	}
 	map_elevation = elevation_packet->image;
 	
-	
-	
-	// REQUEST AND GET SURFACE TEXTURE
+	// GET SURFACE TEXTURE
 	clear(buf);
-	ImagePacket* surfaceTexture_packet = image_packet_init(GetTexture, NULL, 0);
-    tcp_send(socket_desc , &surfaceTexture_packet->header);
-	
     ret = tcp_receive(socket_desc , buf); 
 
     ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
@@ -116,13 +121,8 @@ int main(int argc, char **argv) {
 	}
     map_texture = texture_packet->image;
 
-
-
-    // REQUEST AND GET VEHICLE TEXTURE
+    // GET VEHICLE TEXTURE
 	clear(buf);
-	ImagePacket* vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id);
-    tcp_send(socket_desc , &vehicleTexture_packet->header);
-	
     ret = tcp_receive(socket_desc , buf);
 
     ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
@@ -168,9 +168,10 @@ int main(int argc, char **argv) {
 
 	//free allocated memory
 	Packet_free(&id_packet->header);
-	Packet_free(&surfaceTexture_packet->header);
-	Packet_free(&elevationImage_packet->header);
-	Packet_free(&vehicleTexture_packet->header);
+	Packet_free(&image_packet->header);
+	Packet_free(&texture_packet->header);
+	Packet_free(&elevation_packet->header);
+	Packet_free(&vehicle_packet->header);
 	free(buf);
 	
 	return 0;             
@@ -182,22 +183,33 @@ void *updater_thread(void *arg) {
 
 	// creo socket udp
 	struct sockaddr_in si_other;
-	int udp_socket = udp_client_setup(&si_other);
-
-    int ret;
-
-	char buffer[BUFLEN];
+    int ret, s, slen=sizeof(si_other);
     
+    s=socket(AF_INET, SOCK_DGRAM, 0);
+    
+    si_other.sin_family = AF_INET;
+    si_other.sin_port = htons(UDP_PORT);
+    si_other.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);	
+    
+
+
 	while(_arg->run) {
+
 
 		// create vehicle_packet
 		VehicleUpdatePacket* vehicle_packet = vehicle_update_init(&world, _arg->id, vehicle->rotational_force_update, vehicle->translational_force_update);
-		udp_send(udp_socket, &si_other, &vehicle_packet->header);
+
+		char vehicle_buffer[BUFLEN];
+		int vehicle_buffer_size = Packet_serialize(vehicle_buffer, &vehicle_packet->header);
+		ret = sendto(s, vehicle_buffer, vehicle_buffer_size , 0 , (struct sockaddr *) &si_other, slen);
+		ERROR_HELPER(ret, "Cannot send to server");
+
 		
-        clear(buffer); 	// possiamo sempre usare lo stesso per ricevere
+        char world_buffer[BUFLEN];
+		ret = recvfrom(s, world_buffer, sizeof(world_buffer), 0, (struct sockaddr *) &si_other, (socklen_t*) &slen);
+		ERROR_HELPER(ret, "Cannot recv from server");
 		
-		ret = udp_receive(udp_socket, &si_other, buffer);
-		WorldUpdatePacket* wu_packet = (WorldUpdatePacket*)Packet_deserialize(buffer, ret);		
+		WorldUpdatePacket* wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, ret);		
 		client_update(wu_packet);
  		
 		usleep(30000);

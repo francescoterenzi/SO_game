@@ -43,10 +43,10 @@ libso_game.a: $(OBJS)
 	$(AR) -rcs $@ $^
 	$(RM) $(OBJS)
 	
-server: ./server1.c libso_game.a 
+server: ./server.c libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o $@ $^ $(LIBS)
 
-client: ./client1.c libso_game.a 
+client: ./client.c libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o $@ $^ $(LIBS)
 
 clean:

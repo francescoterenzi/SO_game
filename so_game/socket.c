@@ -9,6 +9,38 @@
 
 #include "socket.h"
 #include "common.h"
+#include "so_game_protocol.h"
+
+int tcp_server_setup(void) {
+	
+	// some fields are required to be filled with 0
+	struct sockaddr_in server_addr = {0};
+
+	int sockaddr_len = sizeof(struct sockaddr_in); // we will reuse it for accept()
+
+	// initialize socket for listening
+	int socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+	ERROR_HELPER(socket_desc, "Could not create socket");
+
+	server_addr.sin_addr.s_addr = INADDR_ANY; // we want to accept connections from any interface
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_port = htons(TCP_PORT); // network byte order!
+
+	// We enable SO_REUSEADDR to quickly restart our server after a crash
+	int reuseaddr_opt = 1;
+	int ret = setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt, sizeof(reuseaddr_opt));
+	ERROR_HELPER(ret, "Cannot set SO_REUSEADDR option");
+
+	// bind address to socket
+	ret = bind(socket_desc, (struct sockaddr *)&server_addr, sockaddr_len);
+	ERROR_HELPER(ret, "Cannot bind address to socket");
+	
+	// start listening
+	ret = listen(socket_desc, MAX_CONN_QUEUE);
+	ERROR_HELPER(ret, "Cannot listen on socket");
+
+	return socket_desc;
+}
 
 int tcp_client_setup(void){
 	int ret;
@@ -33,6 +65,38 @@ int tcp_client_setup(void){
 	if (DEBUG) fprintf(stderr, "Connection established!\n");  
 	
 	return socket_desc;
+}
+
+int udp_server_setup(struct sockaddr_in *si_me) {
+
+	// create the socket
+	int sock = socket(AF_INET, SOCK_DGRAM, 0);
+	ERROR_HELPER(sock, "Could not create the udp_socket");
+
+	// zero the memory
+	memset((char *) si_me, 0, sizeof(*si_me));
+
+	si_me->sin_family = AF_INET;
+	si_me->sin_port = htons(UDP_PORT);
+	si_me->sin_addr.s_addr = htonl(INADDR_ANY);
+
+
+	//bind the socket to port
+	int res = bind(sock , (struct sockaddr*) si_me, sizeof(*si_me));
+	ERROR_HELPER(res, "Could not bind the udp_socket");
+
+	return sock;
+}
+
+int udp_client_setup(struct sockaddr_in *si_other) {
+	
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    
+    si_other->sin_family = AF_INET;
+    si_other->sin_port = htons(UDP_PORT);
+    si_other->sin_addr.s_addr = inet_addr(SERVER_ADDRESS);	
+
+	return sock;
 }
 
 void tcp_send(int socket_desc, PacketHeader* packet){
@@ -75,4 +139,38 @@ int tcp_receive(int socket_desc , char* msg){
 	if(DEBUG) printf("*** Bytes received : %d ***\n" , ret);
 
 	return received_bytes;
+}
+
+void udp_send(int socket, struct sockaddr_in *si, const PacketHeader* h) {
+
+	char buffer[BUFLEN];
+	char size = 0;
+
+	switch(h->type) {
+		case VehicleUpdate:
+		{
+			VehicleUpdatePacket *vup = (VehicleUpdatePacket*) h;
+			size = Packet_serialize(buffer, &vup->header);
+			break;
+		}
+		case WorldUpdate: 
+		{
+			WorldUpdatePacket *wup = (WorldUpdatePacket*) h;
+			size = Packet_serialize(buffer, &wup->header);
+			break;
+		}
+	}
+	
+	int ret = sendto(socket, buffer, size , 0 , (struct sockaddr *) si, sizeof(*si));
+	ERROR_HELPER(ret, "Cannot send to server");
+}
+
+int udp_receive(int socket, struct sockaddr_in *si, char *buffer) {
+
+	ssize_t slen = sizeof(*si);
+
+	int ret = recvfrom(socket, buffer, BUFLEN, 0, (struct sockaddr *) si, (socklen_t*) &slen);
+	ERROR_HELPER(ret, "Cannot recv from server");
+
+	return ret;
 }
