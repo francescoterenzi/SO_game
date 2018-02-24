@@ -48,6 +48,7 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
+
 	char* elevation_filename=argv[1];
 	char* texture_filename=argv[2];
 	char* vehicle_texture_filename="./images/arrow-right.ppm";

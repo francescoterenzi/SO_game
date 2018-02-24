@@ -37,15 +37,8 @@ void *updater_thread(void *arg);
 void sendToServer(int socket_desc, PacketHeader* header);
 int receiveFromServer(int socket_desc, char* msg);
 void clear(char* buf);
-
-
-/**  TO REMEMBER	
- * Alla fine, prima di chiudere il server bisogna rilasciare la memoria
- *   - void Packet_free(PacketHeader* h);
- *   - void Image_free(Image* img);
- *   - free(...) varie
- * **/
-
+void client_update(WorldUpdatePacket *deserialized_wu_packet);
+VehicleUpdatePacket* Vehicle_packet_init(int id, float rotational_force, float translational_force);
 
 
 int main(int argc, char **argv) {
@@ -214,20 +207,13 @@ void *updater_thread(void *arg) {
 
 
 	while(_arg->run) {
-	
-		
-		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)malloc(sizeof(VehicleUpdatePacket));
-		PacketHeader v_head;
-		v_head.type = VehicleUpdate;
 
-		vehicle_packet->header = v_head;
-		vehicle_packet->id = _arg->id;
-		vehicle_packet->rotational_force = vehicle->rotational_force_update;
-		vehicle_packet->translational_force = vehicle->translational_force_update;
-		
+
+		// create vehicle_packet
+		VehicleUpdatePacket* vehicle_packet = Vehicle_packet_init(_arg->id, vehicle->rotational_force_update, vehicle->translational_force_update);
+
 		char vehicle_buffer[BUFLEN];
 		int vehicle_buffer_size = Packet_serialize(vehicle_buffer, &vehicle_packet->header);
-		
 		ret = sendto(s, vehicle_buffer, vehicle_buffer_size , 0 , (struct sockaddr *) &si_other, slen);
 		ERROR_HELPER(ret, "Cannot send to server");
 
@@ -236,52 +222,12 @@ void *updater_thread(void *arg) {
 		ret = recvfrom(s, world_buffer, sizeof(world_buffer), 0, (struct sockaddr *) &si_other, (socklen_t*) &slen);
 		ERROR_HELPER(ret, "Cannot recv from server");
 		
-		WorldUpdatePacket* deserialized_wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, ret);		
-
-		int numb_of_vehicles = deserialized_wu_packet->num_vehicles;
-
-		if(numb_of_vehicles > world.vehicles.size) {
-			int i;
-			for(i=0; i<numb_of_vehicles; i++) {
-				int id = deserialized_wu_packet->updates[i].id;
-				if(World_getVehicle(&world, id) == NULL) {
-
-					Vehicle *v = (Vehicle*) malloc(sizeof(Vehicle)); 
-					Vehicle_init(v,&world, id, _arg->texture);
-					World_addVehicle(&world, v);
-					printf("%s new vehicle added with id: %d\n", UDP_SOCKET_NAME, id);
-				} 
-			}
-		}
-		else if(numb_of_vehicles < world.vehicles.size) {
-			ListItem *item = world.vehicles.first;
-			int i, j;
-			for(i=0; i<world.vehicles.size; i++) {
-				Vehicle *v = (Vehicle*) item;
-				int found = 0;
-				for(j=0; j<deserialized_wu_packet->num_vehicles; i++) {
-					if(v->id == deserialized_wu_packet->updates[i].id) {
-						found = 1;
-						break;
-					}
-				}
-				if(!found) World_detachVehicle(&world, v);
-				printf("%svehicle with id: %d removed\n", UDP_SOCKET_NAME, v->id);
-				item = item->next;	
-			}
-		}
-
-		int i;
-		for(i=0; i<world.vehicles.size; i++) {
-			Vehicle *v = World_getVehicle(&world, deserialized_wu_packet->updates[i].id);
-			
-			v->x = deserialized_wu_packet->updates[i].x;
-			v->y = deserialized_wu_packet->updates[i].y;
-			v->theta = deserialized_wu_packet->updates[i].theta;
-		}
-
-		usleep(300000);
+		WorldUpdatePacket* wu_packet = (WorldUpdatePacket*)Packet_deserialize(world_buffer, ret);		
+		client_update(wu_packet);
+ 		
+		usleep(30000);
 	}
+
 	return 0;
 }
 
@@ -354,10 +300,70 @@ int receiveFromServer(int socket_desc, char* msg){
 	return received_bytes;
 }
 
-
-
 void clear(char* buf){
 	memset(buf , 0 , BUFLEN * sizeof(char));
 }
 
 
+void client_update(WorldUpdatePacket *deserialized_wu_packet) {
+
+	int numb_of_vehicles = deserialized_wu_packet->num_vehicles;
+	
+	if(numb_of_vehicles > world.vehicles.size) {
+		int i;
+		for(i=0; i<numb_of_vehicles; i++) {
+			int id = deserialized_wu_packet->updates[i].id;
+			if(World_getVehicle(&world, id) == NULL) {
+
+				Vehicle *v = (Vehicle*) malloc(sizeof(Vehicle)); 
+				Vehicle_init(v,&world, id, Image_load("./images/arrow-right.ppm"));
+				World_addVehicle(&world, v);
+				printf("%s new vehicle added with id: %d\n", UDP_SOCKET_NAME, id);
+			} 
+		}
+	}
+	
+	else if(numb_of_vehicles < world.vehicles.size) {
+		ListItem* item=world.vehicles.first;
+		int i, find = 0;
+		while(item){
+			Vehicle* v=(Vehicle*)item;
+			for(i=0; i<numb_of_vehicles; i++){
+				if(deserialized_wu_packet->updates[i].id == v->id)
+					find = 1;
+			}
+
+			if (find == 0) {
+				printf("client %d disconnected\n", v->id);
+				World_detachVehicle(&world, v);
+			}
+
+			find = 0;
+			item=item->next;
+		}
+	}
+
+	int i;
+	for(i=0; i<world.vehicles.size; i++) {
+		Vehicle *v = World_getVehicle(&world, deserialized_wu_packet->updates[i].id);
+		
+		v->x = deserialized_wu_packet->updates[i].x;
+		v->y = deserialized_wu_packet->updates[i].y;
+		v->theta = deserialized_wu_packet->updates[i].theta;
+	}
+}
+
+VehicleUpdatePacket* Vehicle_packet_init(int arg_id, float rotational_force, float translational_force) {
+	
+	VehicleUpdatePacket *vehicle_packet = (VehicleUpdatePacket*) malloc(sizeof(VehicleUpdatePacket));
+	PacketHeader v_head;
+	v_head.type = VehicleUpdate;
+
+	vehicle_packet->header = v_head;
+	vehicle_packet->id = arg_id;
+	vehicle_packet->rotational_force = vehicle->rotational_force_update;
+	vehicle_packet->translational_force = vehicle->translational_force_update;
+
+	return vehicle_packet;
+
+}
