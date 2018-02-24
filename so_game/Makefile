@@ -16,7 +16,7 @@ OBJS = vec3.o\
        world.o\
        world_viewer.o\
        so_game_protocol.o\
-	   update_packet.o\
+	   packet.o\
 	   socket.o
 
 HEADERS=helpers.h\
@@ -28,7 +28,7 @@ HEADERS=helpers.h\
 	vehicle.h\
 	world.h\
 	world_viewer.h\
-	update_packet.h\
+	packet.h\
 	socket.h
 
 %.o:	%.c $(HEADERS)
