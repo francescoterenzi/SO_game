@@ -34,7 +34,6 @@ typedef struct {
   int id;
 } UpdaterArgs;
 
-int connectToServer(void);
 void *updater_thread(void *arg);
 void clear(char* buf);
 void client_update(WorldUpdatePacket *deserialized_wu_packet);
@@ -67,7 +66,7 @@ int main(int argc, char **argv) {
 	clear(buf);
 	
 	//initiate a connection on the socket
-	int socket_desc = connectToServer();	
+	int socket_desc = tcp_client_setup();	
 	
 	int ret;
 	
@@ -225,31 +224,6 @@ void *updater_thread(void *arg) {
 	}
 
 	return 0;
-}
-
-int connectToServer(void){
-	int ret;
-
-	// variables for handling a socket
-	int socket_desc;
-	struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
-
-	// create a socket
-	socket_desc = socket(AF_INET, SOCK_STREAM, 0);
-	ERROR_HELPER(socket_desc, "Could not create socket");
-
-	// set up parameters for the connection
-	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
-	server_addr.sin_family      = AF_INET;
-	server_addr.sin_port        = htons(TCP_PORT); // network byte order!
-
-	// initiate a connection on the socket
-	ret = connect(socket_desc, (struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
-	ERROR_HELPER(ret, "Could not create connection");
-
-	if (DEBUG) fprintf(stderr, "Connection established!\n");  
-	
-	return socket_desc;
 }
 
 void clear(char* buf){

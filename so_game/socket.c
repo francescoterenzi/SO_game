@@ -10,6 +10,31 @@
 #include "socket.h"
 #include "common.h"
 
+int tcp_client_setup(void){
+	int ret;
+
+	// variables for handling a socket
+	int socket_desc;
+	struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
+
+	// create a socket
+	socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+	ERROR_HELPER(socket_desc, "Could not create socket");
+
+	// set up parameters for the connection
+	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
+	server_addr.sin_family      = AF_INET;
+	server_addr.sin_port        = htons(TCP_PORT); // network byte order!
+
+	// initiate a connection on the socket
+	ret = connect(socket_desc, (struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
+	ERROR_HELPER(ret, "Could not create connection");
+
+	if (DEBUG) fprintf(stderr, "Connection established!\n");  
+	
+	return socket_desc;
+}
+
 void tcp_send(int socket_desc, PacketHeader* packet){
 	int ret;	
 	char to_send[BUFLEN];
