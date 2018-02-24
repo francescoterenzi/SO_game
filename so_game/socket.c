@@ -107,7 +107,7 @@ void tcp_send(int socket_desc, PacketHeader* packet){
 	int len =  Packet_serialize(to_send, packet);
 	snprintf(len_to_send, BUFLEN , "%d", len);
 	
-	//if(DEBUG) printf("*** Bytes to send : %s ***\n" , len_to_send);
+	if(DEBUG) printf("*** Bytes to send : %s ***\n" , len_to_send);
 	
 	ret = send(socket_desc, len_to_send, sizeof(long int) , 0);
 	ERROR_HELPER(ret, "Cannot send msg to the client");  
@@ -117,7 +117,8 @@ void tcp_send(int socket_desc, PacketHeader* packet){
 
 }
 
-int tcp_receive(int socket_desc , char* msg){
+int tcp_receive(int socket_desc , char* msg) {
+	
 	int ret;
 	char len_to_receive[BUFLEN];
 	
@@ -126,7 +127,7 @@ int tcp_receive(int socket_desc , char* msg){
 	
 	int received_bytes = 0;
 	int to_receive = atoi(len_to_receive);
-	if(DEBUG) printf("*** Bytes received : %d ***\n" , to_receive);
+	if(DEBUG) printf("*** Bytes to_received : %d ***\n" , to_receive);
 
 	
 	while(received_bytes < to_receive){

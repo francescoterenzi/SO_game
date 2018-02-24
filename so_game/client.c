@@ -31,12 +31,13 @@ typedef struct {
   Image *texture;
   volatile int run;
   int id;
+  int tcp_desc;
 } UpdaterArgs;
 
 int connectToServer(void);
 void *updater_thread(void *arg);
 void clear(char* buf);
-void client_update(WorldUpdatePacket *deserialized_wu_packet);
+void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc);
 
 int main(int argc, char **argv) {
 	if (argc<3) {
@@ -62,8 +63,6 @@ int main(int argc, char **argv) {
 	Image* my_texture_from_server; //vehicle texture
 	
 	char* buf = (char*)malloc(sizeof(char) * BUFLEN);
-	
-	
 	
 	int socket_desc = tcp_client_setup();	//initiate a connection on the socket	
 	int ret;
@@ -151,7 +150,8 @@ int main(int argc, char **argv) {
 	UpdaterArgs runner_args={
 		.texture = my_texture_from_server,
 		.run=1,
-		.id = my_id
+		.id = my_id,
+		.tcp_desc = socket_desc
 	};
 	  
 	pthread_attr_init(&runner_attrs);
@@ -176,9 +176,9 @@ int main(int argc, char **argv) {
 	return 0;             
 }
 
-void *updater_thread(void *arg) {
+void *updater_thread(void *args) {
 	
-	UpdaterArgs* _arg = (UpdaterArgs*) arg;
+	UpdaterArgs* arg = (UpdaterArgs*) args;
 
 	// creo socket udp
 	struct sockaddr_in si_other;
@@ -188,17 +188,17 @@ void *updater_thread(void *arg) {
 
 	char buffer[BUFLEN];
     
-	while(_arg->run) {
+	while(arg->run) {
 
 		// create vehicle_packet
-		VehicleUpdatePacket* vehicle_packet = vehicle_update_init(&world, _arg->id, vehicle->rotational_force_update, vehicle->translational_force_update);
+		VehicleUpdatePacket* vehicle_packet = vehicle_update_init(&world, arg->id, vehicle->rotational_force_update, vehicle->translational_force_update);
 		udp_send(udp_socket, &si_other, &vehicle_packet->header);
 		
         clear(buffer); 	// possiamo sempre usare lo stesso per ricevere
 		
 		ret = udp_receive(udp_socket, &si_other, buffer);
 		WorldUpdatePacket* wu_packet = (WorldUpdatePacket*)Packet_deserialize(buffer, ret);		
-		client_update(wu_packet);
+		client_update(wu_packet, arg->tcp_desc);
  		
 		usleep(30000);
 	}
@@ -210,20 +210,31 @@ void clear(char* buf){
 	memset(buf , 0 , BUFLEN * sizeof(char));
 }
 
-void client_update(WorldUpdatePacket *deserialized_wu_packet) {
+void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
 
 	int numb_of_vehicles = deserialized_wu_packet->num_vehicles;
 	
 	if(numb_of_vehicles > world.vehicles.size) {
 		int i;
 		for(i=0; i<numb_of_vehicles; i++) {
-			int id = deserialized_wu_packet->updates[i].id;
-			if(World_getVehicle(&world, id) == NULL) {
+			int v_id = deserialized_wu_packet->updates[i].id;
+			if(World_getVehicle(&world, v_id) == NULL) {
 
-				Vehicle *v = (Vehicle*) malloc(sizeof(Vehicle)); 
-				Vehicle_init(v,&world, id, Image_load("./images/arrow-right.ppm"));
+				/*				
+				char buffer[BUFLEN];
+
+				ImagePacket* vehicle_packet = image_packet_init(GetTexture, NULL, v_id);
+    			tcp_send(socket_desc , &vehicle_packet->header);
+    			
+				int ret = tcp_receive(socket_desc , buffer);
+    			vehicle_packet = (ImagePacket*) Packet_deserialize(buffer, ret);
+				*/
+
+				Vehicle *v = (Vehicle*) malloc(sizeof(Vehicle));
+				Vehicle_init(v,&world, v_id, /*vehicle_packet->image*/ Image_load("./images/arrow-right.ppm"));
+				
 				World_addVehicle(&world, v);
-				printf("%s new vehicle added with id: %d\n", UDP_SOCKET_NAME, id);
+				printf("%s new vehicle added with id: %d\n", UDP_SOCKET_NAME, v_id);
 			} 
 		}
 	}
