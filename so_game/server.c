@@ -19,6 +19,7 @@
 #include "common.h"
 #include "linked_list.h"
 #include "so_game_protocol.h"
+#include "update_packet.h"
 
 
 void *tcp_handler(void *arg);
@@ -27,7 +28,6 @@ void *tcp_client_handler(void *arg);
 void sendToClient(int socket_desc, PacketHeader* packet);
 int receiveFromClient(int socket_desc , char* msg);
 void clear(char* buf);
-WorldUpdatePacket *world_update_init(void);
 
 
 typedef struct thread_args {
@@ -83,9 +83,6 @@ int main(int argc, char **argv) {
 	
 	exit(EXIT_SUCCESS); 
 }
-
-
-
 
 void *tcp_handler(void *arg) {
 	
@@ -149,8 +146,6 @@ void *tcp_handler(void *arg) {
 	return NULL;
 
 }
-
-
 
 void *tcp_client_handler(void *arg){
 	thread_args* args = (thread_args*)arg;
@@ -262,9 +257,6 @@ void *tcp_client_handler(void *arg){
 
 }
 
-
-
-
 void *udp_handler(void *arg) {
 	
 	struct sockaddr_in si_me, udp_client_addr;
@@ -304,8 +296,7 @@ void *udp_handler(void *arg) {
 
 		World_update(&world);
 
-  
-		WorldUpdatePacket* world_packet = world_update_init(); 	
+		WorldUpdatePacket* world_packet = world_update_init(&world); 	
 
 		char world_buffer[BUFLEN];
 		int world_buffer_size = Packet_serialize(world_buffer, &world_packet->header);
@@ -358,37 +349,6 @@ int receiveFromClient(int socket_desc , char* msg){
 	return received_bytes;
 }
 
-
 void clear(char* buf){
 	memset(buf , 0 , BUFLEN * sizeof(char));
-}
-
-WorldUpdatePacket *world_update_init() {
-
-	WorldUpdatePacket* world_packet = (WorldUpdatePacket*)malloc(sizeof(WorldUpdatePacket));
-	PacketHeader w_head;
-	w_head.type = WorldUpdate;
-	world_packet->header = w_head;
-	
-	
-	world_packet->num_vehicles = world.vehicles.size;
-	
-	ClientUpdate* update_block = (ClientUpdate*)malloc(world_packet->num_vehicles*sizeof(ClientUpdate));
-	
-	ListItem *item = world.vehicles.first;
-
-	int i;
-	for(i=0; i<world.vehicles.size; i++) {
-
-		Vehicle *v = (Vehicle*) item;
-		update_block[i].id = v->id;
-		update_block[i].x = v->x;
-		update_block[i].y = v->y;			
-		update_block[i].theta = v->theta;
-
-		item = item->next;
-	}
-		
-	world_packet->updates = update_block;
-	return world_packet;
 }

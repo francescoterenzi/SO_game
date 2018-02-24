@@ -19,6 +19,7 @@
 #include "common.h"
 #include "so_game_protocol.h"
 #include "common.h"
+#include "update_packet.h"
 
 
 WorldViewer viewer;
@@ -38,7 +39,6 @@ void sendToServer(int socket_desc, PacketHeader* header);
 int receiveFromServer(int socket_desc, char* msg);
 void clear(char* buf);
 void client_update(WorldUpdatePacket *deserialized_wu_packet);
-VehicleUpdatePacket* Vehicle_packet_init(int id, float rotational_force, float translational_force);
 
 
 int main(int argc, char **argv) {
@@ -210,7 +210,7 @@ void *updater_thread(void *arg) {
 
 
 		// create vehicle_packet
-		VehicleUpdatePacket* vehicle_packet = Vehicle_packet_init(_arg->id, vehicle->rotational_force_update, vehicle->translational_force_update);
+		VehicleUpdatePacket* vehicle_packet = vehicle_update_init(&world, _arg->id, vehicle->rotational_force_update, vehicle->translational_force_update);
 
 		char vehicle_buffer[BUFLEN];
 		int vehicle_buffer_size = Packet_serialize(vehicle_buffer, &vehicle_packet->header);
@@ -291,7 +291,7 @@ int receiveFromServer(int socket_desc, char* msg){
 	
 	while(received_bytes < to_receive){
 		ret = recv(socket_desc , msg + received_bytes , to_receive - received_bytes , 0);
-	    ERROR_HELPER(ret, "Cannot receive from server");
+	    //ERROR_HELPER(ret, "Cannot receive from server");
 	    received_bytes += ret;
 	    //if(DEBUG) printf("*** Bytes received : %d ***\n" , ret);
 	    if(ret==0) break;
@@ -351,18 +351,4 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet) {
 		v->y = deserialized_wu_packet->updates[i].y;
 		v->theta = deserialized_wu_packet->updates[i].theta;
 	}
-}
-
-VehicleUpdatePacket* Vehicle_packet_init(int arg_id, float rotational_force, float translational_force) {
-	
-	VehicleUpdatePacket *vehicle_packet = (VehicleUpdatePacket*) malloc(sizeof(VehicleUpdatePacket));
-	PacketHeader v_head;
-	v_head.type = VehicleUpdate;
-
-	vehicle_packet->header = v_head;
-	vehicle_packet->id = arg_id;
-	vehicle_packet->rotational_force = vehicle->rotational_force_update;
-	vehicle_packet->translational_force = vehicle->translational_force_update;
-
-	return vehicle_packet;
 }
