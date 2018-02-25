@@ -1,6 +1,8 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "packet.h"
+#include "common.h"
 
 ImagePacket* image_packet_init(Type type, Image *image, int id) {
 
@@ -68,4 +70,9 @@ WorldUpdatePacket* world_update_init(World *world) {
 		
 	world_packet->updates = update_block;
 	return world_packet;
+}
+
+
+void clear(char* buf){
+	memset(buf , 0 , BUFLEN * sizeof(char));
 }

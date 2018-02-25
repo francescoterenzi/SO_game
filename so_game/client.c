@@ -206,10 +206,6 @@ void *updater_thread(void *args) {
 	return 0;
 }
 
-void clear(char* buf){
-	memset(buf , 0 , BUFLEN * sizeof(char));
-}
-
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
 
 	int numb_of_vehicles = deserialized_wu_packet->num_vehicles;

@@ -260,9 +260,6 @@ void *udp_handler(void *arg) {
 	return NULL;
 }
 
-void clear(char* buf){
-	memset(buf , 0 , BUFLEN * sizeof(char));
-}
 
 void world_update(VehicleUpdatePacket *deserialized_vehicle_packet) {
 	

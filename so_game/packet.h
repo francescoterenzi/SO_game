@@ -12,4 +12,6 @@ VehicleUpdatePacket* vehicle_update_init(World *world, int arg_id, float rotatio
 
 WorldUpdatePacket* world_update_init(World *world);
 
+void clear(char* buf);
+
 #endif
