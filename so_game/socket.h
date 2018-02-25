@@ -3,6 +3,15 @@
 
 #include "so_game_protocol.h"
 
+#define SERVER_ADDRESS    "127.0.0.1"
+#define UDP_SOCKET_NAME   "[UDP]"
+#define TCP_SOCKET_NAME   "[TCP]"
+#define UDP_PORT        3000
+#define TCP_PORT        4000
+#define MAX_CONN_QUEUE  20
+#define UDP_BUFLEN      512
+
+
 int tcp_server_setup(void);
 
 int tcp_client_setup(void);
