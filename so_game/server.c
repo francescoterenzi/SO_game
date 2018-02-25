@@ -188,8 +188,7 @@ void *tcp_client_handler(void *arg){
 		else if(packet_from_client->type == PostTexture){
 			ImagePacket* image_packet = (ImagePacket*)packet_from_client;
 			
-			vehicle_texture = image_packet->image;
-			image_client_packet = image_packet_init(PostTexture, vehicle_texture, image_packet->id);
+			image_client_packet = image_packet_init(PostTexture, image_packet->image, image_packet->id);
 			
 			if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, image_packet->id);
 			tcp_send(socket_desc, &image_client_packet->header);
