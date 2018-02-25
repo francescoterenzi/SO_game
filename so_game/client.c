@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
 	else {
 		char *dot = strrchr(image_path, '.');
 		if (dot == NULL || strcmp(dot, ".ppm")!=0){
-			printf("Sorry! Image not found or not supported... \n");
+			fprintf(stderr,"Sorry! Image not found or not supported... \n");
 			exit(EXIT_FAILURE);
 		}
 		my_texture = Image_load(image_path);
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
 			my_texture_for_server = my_texture;
 			vehicle_texture_flag = 1;
 		} else {
-			printf("Sorry! Chose image cannot be loaded... \n");
+			fprintf(stderr,"Sorry! Chose image cannot be loaded... \n");
 			exit(EXIT_FAILURE);
 		}
 	}
