@@ -50,7 +50,8 @@ int main(int argc, char **argv) {
 	char image_path[256];
 	int ret;
 	
-	fprintf(stdout, "You can use your own image. Insert path ('no' for default vehicle image) :\n");
+	fprintf(stdout, "You can use your own image. Only .ppm images are supported.\n");
+	fprintf(stdout, "Insert path ('no' for default vehicle image) :\n");
 	
 	if(scanf("%s",image_path) < 0){
 		fprintf(stderr, "fgets error occured!\n");
@@ -59,13 +60,18 @@ int main(int argc, char **argv) {
 	
 	if(strcmp(image_path, "no") == 0) vehicle_texture_flag = 0;
 	else {
+		char *dot = strrchr(image_path, '.');
+		if (dot == NULL || strcmp(dot, ".ppm")!=0){
+			printf("Sorry! Image not found or not supported... \n");
+			exit(EXIT_FAILURE);
+		}
 		my_texture = Image_load(image_path);
 		if (my_texture) {
 			printf("Done! \n");
 			my_texture_for_server = my_texture;
 			vehicle_texture_flag = 1;
 		} else {
-			printf("Fail! \n");
+			printf("Sorry! Chose image cannot be loaded... \n");
 			exit(EXIT_FAILURE);
 		}
 	}
