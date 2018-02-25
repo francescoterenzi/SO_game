@@ -246,8 +246,7 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
 		for(i=0; i<numb_of_vehicles; i++) {
 			int v_id = deserialized_wu_packet->updates[i].id;
 			if(World_getVehicle(&world, v_id) == NULL) {
-
-				/*				
+	
 				char buffer[BUFLEN];
 
 				ImagePacket* vehicle_packet = image_packet_init(GetTexture, NULL, v_id);
@@ -255,10 +254,9 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
     			
 				int ret = tcp_receive(socket_desc , buffer);
     			vehicle_packet = (ImagePacket*) Packet_deserialize(buffer, ret);
-				*/
 
 				Vehicle *v = (Vehicle*) malloc(sizeof(Vehicle));
-				Vehicle_init(v,&world, v_id, /*vehicle_packet->image*/ Image_load("./images/arrow-right.ppm"));
+				Vehicle_init(v,&world, v_id, vehicle_packet->image);
 				
 				World_addVehicle(&world, v);
 				printf("%s new vehicle added with id: %d\n", UDP_SOCKET_NAME, v_id);

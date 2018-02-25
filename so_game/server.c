@@ -133,6 +133,7 @@ void *tcp_client_handler(void *arg){
     int ret, run = 1;
     char* buf = (char*) malloc(sizeof(char)*BUFLEN);
     
+    Image* client_image;
     PacketHeader* packet_from_client;
 	IdPacket* id_packet;
 	ImagePacket* elevation_packet;
@@ -177,6 +178,7 @@ void *tcp_client_handler(void *arg){
 			else if(packet->id > 0){ 
 				// Client requested vehicle texture
 				texture_packet = image_packet_init(PostTexture, vehicle_texture, packet->id);
+				client_image = vehicle_texture;
 				
 				if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, texture_packet->id);
 				tcp_send(socket_desc, &texture_packet->header);
@@ -188,6 +190,7 @@ void *tcp_client_handler(void *arg){
 		else if(packet_from_client->type == PostTexture){
 			ImagePacket* image_packet = (ImagePacket*)packet_from_client;
 			
+			client_image = image_packet->image;
 			image_client_packet = image_packet_init(PostTexture, image_packet->image, image_packet->id);
 			
 			if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, image_packet->id);
@@ -204,15 +207,20 @@ void *tcp_client_handler(void *arg){
 	
 	// INSERISCO IL CLIENT NEL MONDO
 	Vehicle *vehicle=(Vehicle*) malloc(sizeof(Vehicle));
-	Vehicle_init(vehicle, &world, args->id, vehicle_texture);
+	Vehicle_init(vehicle, &world, args->id, client_image);
 	World_addVehicle(&world, vehicle);
 
 
 	//qui verifichiamo se il client chiude la connessione
 	
 	int connected = 1;
+	PacketHeader* packet;
+	ImagePacket* texture_request;
+	ImagePacket *vehicle_packet;
+	
 	while(connected) {
-		ret = tcp_receive(socket_desc, NULL);		
+		clear(buf);
+		ret = tcp_receive(socket_desc, buf);		
 		switch(ret) {
 			case 0: 
 			{
@@ -221,12 +229,18 @@ void *tcp_client_handler(void *arg){
 			}
 			default: 
 			{
-				ImagePacket* packet = (ImagePacket*) Packet_deserialize(buf , ret);
-
-				Vehicle *v = World_getVehicle(&world, packet->id);
-				ImagePacket *vehicle_packet = image_packet_init(PostTexture, v->texture, v->id); 
-				tcp_send(socket_desc, &vehicle_packet->header);
-				break;
+				packet = (PacketHeader*) Packet_deserialize(buf , ret);
+				
+				if(packet->type == GetTexture){
+					texture_request = (ImagePacket*)packet;					
+					Vehicle *v = World_getVehicle(&world, texture_request->id);
+					
+					vehicle_packet = image_packet_init(PostTexture, v->texture, v->id); 
+					tcp_send(socket_desc, &vehicle_packet->header);
+					free(vehicle_packet);
+					free(packet);
+					break;
+				}
 			}
 		}
 	}
@@ -237,8 +251,8 @@ void *tcp_client_handler(void *arg){
 	World_detachVehicle(&world, vehicle);
 
 	ret = close(socket_desc);
-    ERROR_HELPER(ret, "Cannot close socket for incoming connection");    
-	
+    ERROR_HELPER(ret, "Cannot close socket for incoming connection");
+    
     free(args);
     free(buf);
     pthread_exit(NULL);
