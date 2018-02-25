@@ -1,6 +1,6 @@
 # OPERATING SISTEMS PROJECT - VIDEOGAME
 	
-### Description
+## Description
 Implement a distributed videogame
     
 
@@ -18,6 +18,7 @@ Osservazione 2:
 _La modalità sopra elencata utilizza una mappa di prova (Test Map);_
 _per usufruire di altre mappe digitare al punto 3 il comando `./bin/server/ <map elevation> <map texture>`_
 _dove [<map_elevation>] e [<map_texture>] sono i file .pgm e .ppm della mappa scelta._
+
 
 
 ### Documentation
