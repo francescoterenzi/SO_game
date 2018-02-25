@@ -83,7 +83,6 @@ int main(int argc, char **argv) {
 }
 
 void *tcp_handler(void *arg) {
-	
 	int ret, client_desc;
 
 	int socket_desc = tcp_server_setup();
@@ -94,7 +93,8 @@ void *tcp_handler(void *arg) {
 	struct sockaddr_in *client_addr = calloc(1, sizeof(struct sockaddr_in));
 
 	id = 1;
-
+	
+	if(DEBUG) printf("Server ready to accept incoming connections!");
 	while (1) {		
 		
 		// accept incoming connection
@@ -129,46 +129,63 @@ void *tcp_client_handler(void *arg){
 	int socket_desc = args->socket_desc;
 
     int ret, run = 1;
-    char* buf = (char*) malloc(BUFLEN);
+    char* buf = (char*) malloc(sizeof(char)*BUFLEN);
     
-    while(run) {
-
+    
+    while(run) {		
+		PacketHeader* packet_from_client;
+		IdPacket* id_packet;
+		ImagePacket* elevation_packet;
+		ImagePacket* texture_packet;
 		clear(buf);
-		ret = tcp_receive(socket_desc , buf);
-		PacketHeader* packet_from_client = (PacketHeader*)Packet_deserialize(buf , ret);
 		
-		if(packet_from_client->type == GetId) { //client requested the id			
-			IdPacket* id_packet = id_packet_init(GetId, args->id);
-			
+		ret = tcp_receive(socket_desc , buf);
+		packet_from_client = (PacketHeader*)Packet_deserialize(buf , ret);
+		
+		
+		
+		if(packet_from_client->type == GetId) { 
+			//client requested the id			
+			id_packet = id_packet_init(GetId, args->id);
+						
 			tcp_send(socket_desc, &id_packet->header); 
 			if(DEBUG) printf("%s ASSIGNED ID TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
+			free(id_packet);
 		}
 		
-		else if(packet_from_client->type == GetElevation) {  //client requested the elevation map
-			ImagePacket* elevation_packet = image_packet_init(PostElevation, surface_elevation , 0);
+		else if(packet_from_client->type == GetElevation) {  
+			//client requested the elevation map
+			elevation_packet = image_packet_init(PostElevation, surface_elevation , 0);
 			
 			if(DEBUG) printf("%s SENDING ELEVATION TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 			tcp_send(socket_desc, &elevation_packet->header);
+			free(elevation_packet);
 			
 		}
 		
 		else if(packet_from_client->type == GetTexture) {
-			ImagePacket* texture_packet = (ImagePacket*)packet_from_client;
+			ImagePacket* packet = (ImagePacket*)packet_from_client;
 			
-			if(texture_packet->id == 0){  // Client requested surface texture
-				ImagePacket* surface_texture_packet = image_packet_init(PostTexture, surface_texture , 0);
+			if(packet->id == 0){  
+				// Client requested surface texture
+				texture_packet = image_packet_init(PostTexture, surface_texture , 0);
 							
 				if(DEBUG) printf("%s SENDING SURFACE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
-				tcp_send(socket_desc, &surface_texture_packet->header);
+				tcp_send(socket_desc, &texture_packet->header);
+				free(texture_packet);
 			}
-			else if(texture_packet->id > 0){ // Client requested vehicle texture
-
-				ImagePacket* vehicle_texture_packet = image_packet_init(PostTexture, vehicle_texture, texture_packet->id);
+			else if(packet->id > 0){ 
+				// Client requested vehicle texture
+				texture_packet = image_packet_init(PostTexture, vehicle_texture, packet->id);
+				
 				if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, texture_packet->id);
-				tcp_send(socket_desc, &vehicle_texture_packet->header);
+				tcp_send(socket_desc, &texture_packet->header);
+				free(texture_packet);
 				run = 0;
 			}
+			
 		}
+		free(packet_from_client);
 	}
 
 	if(DEBUG) printf("%s ALL TEXTURES SENT TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
@@ -179,12 +196,7 @@ void *tcp_client_handler(void *arg){
 	Vehicle *vehicle=(Vehicle*) malloc(sizeof(Vehicle));
 	Vehicle_init(vehicle, &world, args->id, vehicle_texture);
 	World_addVehicle(&world, vehicle);
-	
-	/**
-	Packet_free(&texture_packet->header);
-	Packet_free(&elevation_packet->header);
-	Packet_free(&vehicle_packet->header);
-	**/
+
 
 	//qui verifichiamo se il client chiude la connessione
 	
@@ -217,8 +229,11 @@ void *tcp_client_handler(void *arg){
 
 	ret = close(socket_desc);
     ERROR_HELPER(ret, "Cannot close socket for incoming connection");
+    
+    
 	
     free(args);
+    free(buf);
     pthread_exit(NULL);
 
 }
