@@ -11,15 +11,15 @@
 #include <pthread.h>
 #include <time.h>
 
-#include "image.h"
-#include "surface.h"
-#include "world.h"
-#include "vehicle.h"
-#include "world_viewer.h"
 #include "common.h"
-#include "so_game_protocol.h"
-#include "packet.h"
-#include "socket.h"
+#include "../image/image.h"
+#include "../surface/surface.h"
+#include "../world/world.h"
+#include "../vehicle/vehicle.h"
+#include "../world/world_viewer.h"
+#include "../protocol/so_game_protocol.h"
+#include "../packet/packet.h"
+#include "../socket/socket.h"
 
 
 WorldViewer viewer;
