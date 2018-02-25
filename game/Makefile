@@ -5,7 +5,9 @@ AR=ar
 
 BINS= libso_game.a\
      	server\
-     	client
+     	client\
+		server_fra\
+		client_fra
 
 OBJS = src/vehicle/vec3.o\
        src/linked_list/linked_list.o\
@@ -50,5 +52,12 @@ server: ./src/client_server/server.c ./bin/libso_game.a
 client: ./src/client_server/client.c ./bin/libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o ./bin/$@ $^ $(LIBS) 
 
+server_fra: ./src/client_server/server_fra.c ./bin/libso_game.a 
+	$(CC) $(CCOPTS) -Ofast -o ./bin_fra/$@ $^ $(LIBS)
+
+client_fra: ./src/client_server/client_fra.c ./bin/libso_game.a 
+	$(CC) $(CCOPTS) -Ofast -o ./bin_fra/$@ $^ $(LIBS) 
+
+
 clean:
-	rm -rf *.o *~  ./bin/*
+	rm -rf *.o *~  ./bin/* && rm -rf *.o *~  ./bin_fra/*
