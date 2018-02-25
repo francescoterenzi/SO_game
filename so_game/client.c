@@ -94,6 +94,7 @@ int main(int argc, char **argv) {
 		if(DEBUG) printf("%s ELEVATION MAP RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
 		if(DEBUG) printf(" ERROR, elevation map not received!\n");
+		exit(EXIT_FAILURE);
 	}
 	map_elevation = elevation_packet->image;
 	
@@ -112,6 +113,7 @@ int main(int argc, char **argv) {
 		if(DEBUG) printf("%s SURFACE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
 		if(DEBUG) printf(" ERROR, surface texture not received!\n");
+		exit(EXIT_FAILURE);
 	}
     map_texture = texture_packet->image;
 
@@ -130,6 +132,7 @@ int main(int argc, char **argv) {
 		if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
 		if(DEBUG) printf(" ERROR, vehicle texture not received!\n");
+		exit(EXIT_FAILURE);
 	}
 	my_texture_from_server = vehicle_packet->image;
 	
@@ -168,9 +171,16 @@ int main(int argc, char **argv) {
 
 	//free allocated memory
 	Packet_free(&id_packet->header);
+	Packet_free(&received_packet->header);
+	
 	Packet_free(&surfaceTexture_packet->header);
+	Packet_free(&texture_packet->header);
+	
 	Packet_free(&elevationImage_packet->header);
+	Packet_free(&elevation_packet->header);
+	
 	Packet_free(&vehicleTexture_packet->header);
+	Packet_free(&vehicle_packet->header);
 	free(buf);
 	
 	return 0;             

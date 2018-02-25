@@ -133,18 +133,15 @@ void *tcp_client_handler(void *arg){
     int ret, run = 1;
     char* buf = (char*) malloc(sizeof(char)*BUFLEN);
     
+    PacketHeader* packet_from_client;
+	IdPacket* id_packet;
+	ImagePacket* elevation_packet;
+	ImagePacket* texture_packet;
     
     while(run) {		
-		PacketHeader* packet_from_client;
-		IdPacket* id_packet;
-		ImagePacket* elevation_packet;
-		ImagePacket* texture_packet;
-		clear(buf);
-		
+		clear(buf);		
 		ret = tcp_receive(socket_desc , buf);
 		packet_from_client = (PacketHeader*)Packet_deserialize(buf , ret);
-		
-		
 		
 		if(packet_from_client->type == GetId) { 
 			//client requested the id			
@@ -191,7 +188,6 @@ void *tcp_client_handler(void *arg){
 	}
 
 	if(DEBUG) printf("%s ALL TEXTURES SENT TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
-
 	
 	
 	// INSERISCO IL CLIENT NEL MONDO
@@ -204,16 +200,15 @@ void *tcp_client_handler(void *arg){
 	
 	int connected = 1;
 	while(connected) {
-
-		ret = tcp_receive(socket_desc, NULL);
-		
+		ret = tcp_receive(socket_desc, NULL);		
 		switch(ret) {
-
-			case 0: {
+			case 0: 
+			{
 				connected = 0;
 				break;
 			}
-			default: {
+			default: 
+			{
 				ImagePacket* packet = (ImagePacket*) Packet_deserialize(buf , ret);
 
 				Vehicle *v = World_getVehicle(&world, packet->id);
@@ -230,9 +225,7 @@ void *tcp_client_handler(void *arg){
 	World_detachVehicle(&world, vehicle);
 
 	ret = close(socket_desc);
-    ERROR_HELPER(ret, "Cannot close socket for incoming connection");
-    
-    
+    ERROR_HELPER(ret, "Cannot close socket for incoming connection");    
 	
     free(args);
     free(buf);
