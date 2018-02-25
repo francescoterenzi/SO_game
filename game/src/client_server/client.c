@@ -30,67 +30,34 @@ Vehicle* vehicle;
 void *updater_thread(void *arg);
 
 int main(int argc, char **argv) {
+
 	if (argc<2) {
 		printf("usage: %s <server_address>\n", argv[1]);
 		exit(-1);
 	}
 
-	Image* my_texture;
-	Image* my_texture_for_server;
-	
-	int vehicle_texture_flag;
-	char image_path[256];
 	int ret;
-	
-	fprintf(stdout, "You can use your own image. Only .ppm images are supported.\n");
-	fprintf(stdout, "Insert path ('no' for default vehicle image) :\n");
-	
-	if(scanf("%s",image_path) < 0){
-		fprintf(stderr, "fgets error occured!\n");
-		exit(EXIT_FAILURE);
-	}
-	
-	if(strcmp(image_path, "no") == 0) vehicle_texture_flag = 0;
-	else {
-		char *dot = strrchr(image_path, '.');
-		if (dot == NULL || strcmp(dot, ".ppm")!=0){
-			fprintf(stderr,"Sorry! Image not found or not supported... \n");
-			exit(EXIT_FAILURE);
-		}
-		my_texture = Image_load(image_path);
-		if (my_texture) {
-			printf("Done! \n");
-			my_texture_for_server = my_texture;
-			vehicle_texture_flag = 1;
-		} else {
-			fprintf(stderr,"Sorry! Chose image cannot be loaded... \n");
-			exit(EXIT_FAILURE);
-		}
-	}
 
-	// these come from the server
+	// setup
 	int my_id = -1;
-	Image* map_elevation;
-	Image* map_texture;
-	Image* my_texture_from_server; //vehicle texture
-	
+	Image* map_elevation = NULL;
+	Image* map_texture = NULL;
+	Image* vehicle_texture = NULL;
 	char* buf = (char*)malloc(sizeof(char) * BUFLEN);
-	
-	int socket_desc = tcp_client_setup();	//initiate a connection on the socket	
+	int socket_desc = tcp_client_setup();
 	
 	// REQUEST AND GET AN ID
 	clear(buf);
 	IdPacket* id_packet = id_packet_init(GetId, my_id);	
-
 	tcp_send(socket_desc , &id_packet->header);	     // Requesting id
 	ret = tcp_receive(socket_desc , buf);          // Receiving id
 	
 	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, ret); // Id received!
 	my_id = received_packet->id;
-	
-	if(DEBUG) printf("ID received : %d\n", my_id);
 
-
+	welcome_client(my_id);
+	get_vehicle_texture(vehicle_texture);
+	printf("\n\nJoin the game!! ***\n\n");
 
     // REQUEST AND GET ELEVATION MAP    
     clear(buf);
@@ -101,12 +68,15 @@ int main(int argc, char **argv) {
     
     ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
+	/*
 	if( (elevation_packet->header).type == PostElevation && elevation_packet->id == 0) {
 		if(DEBUG) printf("%s ELEVATION MAP RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
 		if(DEBUG) printf(" ERROR, elevation map not received!\n");
 		exit(EXIT_FAILURE);
 	}
+	*/
+
 	map_elevation = elevation_packet->image;
 	
 	
@@ -120,43 +90,51 @@ int main(int argc, char **argv) {
 
     ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
+	/*
 	if( (texture_packet->header).type == PostTexture && texture_packet->id == 0) {
 		if(DEBUG) printf("%s SURFACE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
 		if(DEBUG) printf(" ERROR, surface texture not received!\n");
 		exit(EXIT_FAILURE);
 	}
+	*/
     map_texture = texture_packet->image;
 
 
 
     // GET VEHICLE TEXTURE
 	clear(buf);
-	ImagePacket* vehicleTexture_packet;
-	
-	if(!vehicle_texture_flag) vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id); // client chose default vehicle image
-	else vehicleTexture_packet = image_packet_init(PostTexture, my_texture_for_server, my_id);    // client chose to use his own image
-	tcp_send(socket_desc , &vehicleTexture_packet->header);
-	
-	ret = tcp_receive(socket_desc , buf);
-	
-	ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
-	
-	if( (vehicle_packet->header).type == PostTexture && vehicle_packet->id > 0) {
-		if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
-	} else {
-		if(DEBUG) printf(" ERROR, vehicle texture not received!\n");
-		exit(EXIT_FAILURE);
+	ImagePacket* vehicleTexture_packet = NULL;
+	if(vehicle_texture) {
+		vehicleTexture_packet = image_packet_init(PostTexture, vehicle_texture, my_id);    // client chose to use his own image
+		tcp_send(socket_desc , &vehicleTexture_packet->header);
 	}
-	my_texture_from_server = vehicle_packet->image;
+	else {
+
+		vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id);    // client chose to use his own image
+		tcp_send(socket_desc , &vehicleTexture_packet->header);
+
+		ret = tcp_receive(socket_desc , buf);	
+		ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
+		
+		/*
+		if( (vehicle_packet->header).type == PostTexture && vehicle_packet->id > 0) {
+			if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
+		} else {
+			if(DEBUG) printf(" ERROR, vehicle texture not received!\n");
+			exit(EXIT_FAILURE);
+		}
+		*/
+		vehicle_texture = vehicle_packet->image;
+	}
 	
-	if(DEBUG) printf("%s ALL TEXTURES RECEIVED\n", TCP_SOCKET_NAME);
+	//if(DEBUG) printf("%s ALL TEXTURES RECEIVED\n", TCP_SOCKET_NAME);
 	
 	// construct the world
 	World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
 	vehicle=(Vehicle*) malloc(sizeof(Vehicle));
 	
-	Vehicle_init(vehicle, &world, my_id, my_texture_from_server);
+	Vehicle_init(vehicle, &world, my_id, vehicle_texture);
 	World_addVehicle(&world, vehicle);
 	
 	
@@ -164,7 +142,7 @@ int main(int argc, char **argv) {
 	pthread_t runner_thread;
 	pthread_attr_t runner_attrs;
 	UpdaterArgs runner_args={
-		.texture = my_texture_from_server,
+		.texture = vehicle_texture,
 		.run=1,
 		.id = my_id,
 		.tcp_desc = socket_desc
@@ -183,6 +161,7 @@ int main(int argc, char **argv) {
 	World_destroy(&world);
 
 	//free allocated memory
+
 	Packet_free(&id_packet->header);
 	Packet_free(&received_packet->header);
 	
@@ -191,10 +170,12 @@ int main(int argc, char **argv) {
 	
 	Packet_free(&elevationImage_packet->header);
 	Packet_free(&elevation_packet->header);
-	
+
 	Packet_free(&vehicleTexture_packet->header);
-	Packet_free(&vehicle_packet->header);
+	Packet_free(&vehicleTexture_packet->header);
+
 	free(buf);
+
 	
 	return 0;             
 }

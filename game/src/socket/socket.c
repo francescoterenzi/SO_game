@@ -114,7 +114,6 @@ void tcp_send(int socket_desc, PacketHeader* packet){
 	
 	ret = send(socket_desc, to_send, len , 0);
 	ERROR_HELPER(ret, "Cannot send msg to the client");  
-
 }
 
 int tcp_receive(int socket_desc , char* msg) {
@@ -122,7 +121,7 @@ int tcp_receive(int socket_desc , char* msg) {
 	int ret;
 	char len_to_receive[BUFLEN];
 	
-	//ret = recv(socket_desc , len_to_receive , sizeof(long int) , 0);
+	ret = recv(socket_desc , len_to_receive , sizeof(long int) , 0);
 	ERROR_HELPER(ret, "Cannot receive from client");
 	
 	int received_bytes = 0;

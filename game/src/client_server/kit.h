@@ -11,6 +11,7 @@ typedef struct thread_args {
 } thread_args;
 
 void welcome_server(void);
+void update_info(World *world, int id, int flag);
 void world_update(VehicleUpdatePacket *deserialized_vehicle_packet, World *world);
 
 
@@ -22,6 +23,8 @@ typedef struct {
   int tcp_desc;
 } UpdaterArgs;
 
+void welcome_client(int id);
+void get_vehicle_texture(Image *vehicle_texture);
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, World *world);
 
 #endif

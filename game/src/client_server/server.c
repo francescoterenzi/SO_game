@@ -140,14 +140,15 @@ void *tcp_client_handler(void *arg){
     while(run) {		
 		clear(buf);		
 		ret = tcp_receive(socket_desc , buf);
+
 		packet_from_client = (PacketHeader*)Packet_deserialize(buf , ret);
-		
-		if(packet_from_client->type == GetId) { 
+
+		if(packet_from_client->type == GetId) {
 			//client requested the id			
 			id_packet = id_packet_init(GetId, args->id);
 						
 			tcp_send(socket_desc, &id_packet->header); 
-			if(DEBUG) printf("%s ASSIGNED ID TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
+			//if(DEBUG) printf("%s ASSIGNED ID TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 			free(id_packet);
 		}
 		
@@ -155,7 +156,7 @@ void *tcp_client_handler(void *arg){
 			//client requested the elevation map
 			elevation_packet = image_packet_init(PostElevation, surface_elevation , 0);
 			
-			if(DEBUG) printf("%s SENDING ELEVATION TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
+			//if(DEBUG) printf("%s SENDING ELEVATION TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 			tcp_send(socket_desc, &elevation_packet->header);
 			free(elevation_packet);
 			
@@ -168,7 +169,7 @@ void *tcp_client_handler(void *arg){
 				// Client requested surface texture
 				texture_packet = image_packet_init(PostTexture, surface_texture , 0);
 							
-				if(DEBUG) printf("%s SENDING SURFACE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
+				//if(DEBUG) printf("%s SENDING SURFACE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 				tcp_send(socket_desc, &texture_packet->header);
 				free(texture_packet);
 			}
@@ -176,7 +177,7 @@ void *tcp_client_handler(void *arg){
 				// Client requested vehicle texture
 				texture_packet = image_packet_init(PostTexture, vehicle_texture, packet->id);
 				
-				if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, texture_packet->id);
+				//if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, texture_packet->id);
 				tcp_send(socket_desc, &texture_packet->header);
 				free(texture_packet);
 				run = 0;
@@ -184,12 +185,10 @@ void *tcp_client_handler(void *arg){
 		}
 		
 		else if(packet_from_client->type == PostTexture){
-			ImagePacket* image_packet = (ImagePacket*)packet_from_client;
+
+			image_client_packet = (ImagePacket*)packet_from_client;
 			
-			image_client_packet = image_packet_init(PostTexture, image_packet->image, image_packet->id);
-			
-			if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, image_packet->id);
-			tcp_send(socket_desc, &image_client_packet->header);
+			vehicle_texture = image_client_packet->image;
 			free(image_client_packet);
 			run = 0;		
 		}
@@ -197,7 +196,7 @@ void *tcp_client_handler(void *arg){
 		free(packet_from_client);
 	}
 
-	if(DEBUG) printf("%s ALL TEXTURES SENT TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
+	//if(DEBUG) printf("%s ALL TEXTURES SENT TO CLIENT %d\n", TCP_SOCKET_NAME, args->id);
 	
 	
 	// INSERISCO IL CLIENT NEL MONDO
@@ -205,34 +204,20 @@ void *tcp_client_handler(void *arg){
 	Vehicle_init(vehicle, &world, args->id, vehicle_texture);
 	World_addVehicle(&world, vehicle);
 
+	update_info(&world, args->id, 1);
+	
+
 
 	//qui verifichiamo se il client chiude la connessione
 	
 	int connected = 1;
 	while(connected) {
-		ret = tcp_receive(socket_desc, NULL);		
-		switch(ret) {
-			case 0: 
-			{
-				connected = 0;
-				break;
-			}
-			default: 
-			{
-				ImagePacket* packet = (ImagePacket*) Packet_deserialize(buf , ret);
-
-				Vehicle *v = World_getVehicle(&world, packet->id);
-				ImagePacket *vehicle_packet = image_packet_init(PostTexture, v->texture, v->id); 
-				tcp_send(socket_desc, &vehicle_packet->header);
-				break;
-			}
-		}
+		ret = tcp_receive(socket_desc, NULL);
+		if(ret == 0) connected = 0;
 	}
-	
-	
-	printf("%s CLIENT %d CLOSED THE GAME\n", TCP_SOCKET_NAME, args->id);
-	
+
 	World_detachVehicle(&world, vehicle);
+	update_info(&world, args->id, 0);
 
 	ret = close(socket_desc);
     ERROR_HELPER(ret, "Cannot close socket for incoming connection");    
