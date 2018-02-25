@@ -94,7 +94,9 @@ void *tcp_handler(void *arg) {
 
 	id = 1;
 	
-	if(DEBUG) printf("Server ready to accept incoming connections!");
+	if(DEBUG) fprintf(stdout ,"**Server ready to accept incoming connections!**\n");
+	fflush(stdout);
+	
 	while (1) {		
 		
 		// accept incoming connection
