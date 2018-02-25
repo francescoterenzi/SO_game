@@ -240,8 +240,9 @@ void *updater_thread(void *args) {
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
 
 	int numb_of_vehicles = deserialized_wu_packet->num_vehicles;
+	int world_size = world.vehicles.size;
 	
-	if(numb_of_vehicles > world.vehicles.size) {
+	if(numb_of_vehicles > world_size) {
 		int i;
 		for(i=0; i<numb_of_vehicles; i++) {
 			int v_id = deserialized_wu_packet->updates[i].id;
@@ -264,13 +265,14 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
 		}
 	}
 	
-	else if(numb_of_vehicles < world.vehicles.size) {
+	else if(numb_of_vehicles < world_size) {
 		ListItem* item=world.vehicles.first;
 		int i, find = 0;
 		while(item){
-			Vehicle* v=(Vehicle*)item;
+			Vehicle* v = (Vehicle*)item;
+			int vehicle_id = v->id;
 			for(i=0; i<numb_of_vehicles; i++){
-				if(deserialized_wu_packet->updates[i].id == v->id)
+				if(deserialized_wu_packet->updates[i].id == vehicle_id)
 					find = 1;
 			}
 
@@ -285,7 +287,7 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
 	}
 
 	int i;
-	for(i=0; i<world.vehicles.size; i++) {
+	for(i=0; i<world_size; i++) {
 		Vehicle *v = World_getVehicle(&world, deserialized_wu_packet->updates[i].id);
 		
 		v->x = deserialized_wu_packet->updates[i].x;
