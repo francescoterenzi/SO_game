@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 
 #include "common.h"
+#include "kit.h"
 #include "../image/image.h"
 #include "../surface/surface.h"
 #include "../world/world.h"
@@ -25,14 +26,7 @@
 void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
-void clear(char* buf);
-void world_update(VehicleUpdatePacket *deserialized_vehicle_packet);
 
-
-typedef struct thread_args {
-	int id;
-	int socket_desc;	
-} thread_args;
 
 World world;
 Image* surface_texture;
@@ -43,19 +37,24 @@ int id;
 
 int main(int argc, char **argv) {
 	
-	if (argc<3) {
-	printf("usage: %s <elevation_image> <texture_image>\n", argv[1]);
+	if (argc < 4) {
+	printf("usage: %s <elevation_image> <texture_image> <vehicle_texture> \n", argv[1]);
 		exit(-1);
 	}
 
-	char* elevation_filename=argv[1];
-	char* texture_filename=argv[2];
-	char* vehicle_texture_filename="./images/arrow-right.ppm";
+	char* elevation_filename = argv[1];
+	char* texture_filename = argv[2];
+	char* vehicle_texture_filename = argv[3];
 	
 	// load the images
 	surface_elevation = Image_load(elevation_filename);
 	surface_texture = Image_load(texture_filename);
 	vehicle_texture = Image_load(vehicle_texture_filename);
+
+	if(!surface_elevation || !surface_texture || !vehicle_texture) {
+		printf("Errore nel caricamento delle immagini di default\n");
+		exit(1);
+	}
 	
 	
 	// creating the world
@@ -94,8 +93,7 @@ void *tcp_handler(void *arg) {
 
 	id = 1;
 	
-	if(DEBUG) fprintf(stdout ,"**Server ready to accept incoming connections!**\n");
-	fflush(stdout);
+	welcome_server();
 	
 	while (1) {		
 		
@@ -259,23 +257,10 @@ void *udp_handler(void *arg) {
 		res = udp_receive(udp_socket, &udp_client_addr, buffer);
 
 		VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
-		world_update(deserialized_vehicle_packet);
+		world_update(deserialized_vehicle_packet, &world);
 		WorldUpdatePacket* world_packet = world_update_init(&world);	
 		
 		udp_send(udp_socket, &udp_client_addr, &world_packet->header);
 	}
 	return NULL;
-}
-
-
-void world_update(VehicleUpdatePacket *deserialized_vehicle_packet) {
-	
-	int vehicle_id = deserialized_vehicle_packet->id;
-		
-	Vehicle* v = World_getVehicle(&world, vehicle_id);
-	v->rotational_force_update = deserialized_vehicle_packet->rotational_force;
-	v->translational_force_update = deserialized_vehicle_packet->translational_force; 
-
-	World_update(&world);
-
 }

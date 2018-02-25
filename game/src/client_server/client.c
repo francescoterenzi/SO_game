@@ -12,6 +12,7 @@
 #include <time.h>
 
 #include "common.h"
+#include "kit.h"
 #include "../image/image.h"
 #include "../surface/surface.h"
 #include "../world/world.h"
@@ -21,31 +22,22 @@
 #include "../packet/packet.h"
 #include "../socket/socket.h"
 
-
 WorldViewer viewer;
 World world;
 Vehicle* vehicle;
 
 
-typedef struct {
-  Image *texture;
-  volatile int run;
-  int id;
-  int tcp_desc;
-} UpdaterArgs;
-
-int connectToServer(void);
 void *updater_thread(void *arg);
-void clear(char* buf);
-void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc);
 
 int main(int argc, char **argv) {
 	if (argc<2) {
 		printf("usage: %s <server_address>\n", argv[1]);
 		exit(-1);
 	}
+
 	Image* my_texture;
 	Image* my_texture_for_server;
+	
 	int vehicle_texture_flag;
 	char image_path[256];
 	int ret;
@@ -96,7 +88,7 @@ int main(int argc, char **argv) {
 	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, ret); // Id received!
 	my_id = received_packet->id;
 	
-	if(DEBUG) printf("Id received : %d\n", my_id);
+	if(DEBUG) printf("ID received : %d\n", my_id);
 
 
 
@@ -229,69 +221,10 @@ void *updater_thread(void *args) {
 		
 		ret = udp_receive(udp_socket, &si_other, buffer);
 		WorldUpdatePacket* wu_packet = (WorldUpdatePacket*)Packet_deserialize(buffer, ret);		
-		client_update(wu_packet, arg->tcp_desc);
+		client_update(wu_packet, arg->tcp_desc, &world);
  		
 		usleep(30000);
 	}
 
 	return 0;
-}
-
-void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
-
-	int numb_of_vehicles = deserialized_wu_packet->num_vehicles;
-	int world_size = world.vehicles.size;
-	
-	if(numb_of_vehicles > world_size) {
-		int i;
-		for(i=0; i<numb_of_vehicles; i++) {
-			int v_id = deserialized_wu_packet->updates[i].id;
-			if(World_getVehicle(&world, v_id) == NULL) {
-	
-				char buffer[BUFLEN];
-
-				ImagePacket* vehicle_packet = image_packet_init(GetTexture, NULL, v_id);
-    			tcp_send(socket_desc , &vehicle_packet->header);
-    			
-				int ret = tcp_receive(socket_desc , buffer);
-    			vehicle_packet = (ImagePacket*) Packet_deserialize(buffer, ret);
-
-				Vehicle *v = (Vehicle*) malloc(sizeof(Vehicle));
-				Vehicle_init(v,&world, v_id, vehicle_packet->image);
-				
-				World_addVehicle(&world, v);
-				printf("%s new vehicle added with id: %d\n", UDP_SOCKET_NAME, v_id);
-			} 
-		}
-	}
-	
-	else if(numb_of_vehicles < world_size) {
-		ListItem* item=world.vehicles.first;
-		int i, find = 0;
-		while(item){
-			Vehicle* v = (Vehicle*)item;
-			int vehicle_id = v->id;
-			for(i=0; i<numb_of_vehicles; i++){
-				if(deserialized_wu_packet->updates[i].id == vehicle_id)
-					find = 1;
-			}
-
-			if (find == 0) {
-				printf("client %d disconnected\n", v->id);
-				World_detachVehicle(&world, v);
-			}
-
-			find = 0;
-			item=item->next;
-		}
-	}
-
-	int i;
-	for(i=0; i<world_size; i++) {
-		Vehicle *v = World_getVehicle(&world, deserialized_wu_packet->updates[i].id);
-		
-		v->x = deserialized_wu_packet->updates[i].x;
-		v->y = deserialized_wu_packet->updates[i].y;
-		v->theta = deserialized_wu_packet->updates[i].theta;
-	}
 }

@@ -16,7 +16,8 @@ OBJS = src/vehicle/vec3.o\
        src/world/world_viewer.o\
        src/protocol/so_game_protocol.o\
 	   src/packet/packet.o\
-	   src/socket/socket.o
+	   src/socket/socket.o\
+	   src/client_server/kit.o
 
 HEADERS=helpers.h\
 	src/image/image.h\
@@ -28,7 +29,8 @@ HEADERS=helpers.h\
 	src/world/world.h\
 	src/world/world_viewer.h\
 	src/packet/packet.h\
-	src/socket/socket.h
+	src/socket/socket.h\
+	src/client_server/kit.h
 
 %.o:	%.c $(HEADERS)
 	$(CC) $(CCOPTS) -c -o $@  $<
