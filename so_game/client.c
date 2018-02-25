@@ -40,21 +40,35 @@ void clear(char* buf);
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc);
 
 int main(int argc, char **argv) {
-	if (argc<3) {
-	printf("usage: %s <server_address> <player texture>\n", argv[1]);
-	exit(-1);
+	if (argc<2) {
+		printf("usage: %s <server_address>\n", argv[1]);
+		exit(-1);
 	}
-
-	printf("loading texture image from %s ... \n", argv[2]);
-	Image* my_texture = Image_load(argv[2]);
-	if (my_texture) {
-		printf("Done! \n");
-	} else {
-		printf("Fail! \n");
+	Image* my_texture;
+	Image* my_texture_for_server;
+	int vehicle_texture_flag;
+	char image_path[256];
+	int ret;
+	
+	fprintf(stdout, "You can use your own image. Insert path ('no' for default vehicle image) :\n");
+	
+	if(scanf("%s",image_path) < 0){
+		fprintf(stderr, "fgets error occured!\n");
+		exit(EXIT_FAILURE);
 	}
 	
-	
-	///Image* my_texture_for_server = my_texture;
+	if(strcmp(image_path, "no") == 0) vehicle_texture_flag = 0;
+	else {
+		my_texture = Image_load(image_path);
+		if (my_texture) {
+			printf("Done! \n");
+			my_texture_for_server = my_texture;
+			vehicle_texture_flag = 1;
+		} else {
+			printf("Fail! \n");
+			exit(EXIT_FAILURE);
+		}
+	}
 
 	// these come from the server
 	int my_id = -1;
@@ -65,7 +79,6 @@ int main(int argc, char **argv) {
 	char* buf = (char*)malloc(sizeof(char) * BUFLEN);
 	
 	int socket_desc = tcp_client_setup();	//initiate a connection on the socket	
-	int ret;
 	
 	// REQUEST AND GET AN ID
 	clear(buf);
@@ -119,15 +132,18 @@ int main(int argc, char **argv) {
 
 
 
-    // REQUEST AND GET VEHICLE TEXTURE
+    // GET VEHICLE TEXTURE
 	clear(buf);
-	ImagePacket* vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id);
-    tcp_send(socket_desc , &vehicleTexture_packet->header);
+	ImagePacket* vehicleTexture_packet;
 	
-    ret = tcp_receive(socket_desc , buf);
-
-    ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
-    
+	if(!vehicle_texture_flag) vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id); // client chose default vehicle image
+	else vehicleTexture_packet = image_packet_init(PostTexture, my_texture_for_server, my_id);    // client chose to use his own image
+	tcp_send(socket_desc , &vehicleTexture_packet->header);
+	
+	ret = tcp_receive(socket_desc , buf);
+	
+	ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
+	
 	if( (vehicle_packet->header).type == PostTexture && vehicle_packet->id > 0) {
 		if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
@@ -137,7 +153,6 @@ int main(int argc, char **argv) {
 	my_texture_from_server = vehicle_packet->image;
 	
 	if(DEBUG) printf("%s ALL TEXTURES RECEIVED\n", TCP_SOCKET_NAME);
-	
 	
 	// construct the world
 	World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);

@@ -137,6 +137,7 @@ void *tcp_client_handler(void *arg){
 	IdPacket* id_packet;
 	ImagePacket* elevation_packet;
 	ImagePacket* texture_packet;
+	ImagePacket* image_client_packet;
     
     while(run) {		
 		clear(buf);		
@@ -181,9 +182,21 @@ void *tcp_client_handler(void *arg){
 				tcp_send(socket_desc, &texture_packet->header);
 				free(texture_packet);
 				run = 0;
-			}
-			
+			}			
 		}
+		
+		else if(packet_from_client->type == PostTexture){
+			ImagePacket* image_packet = (ImagePacket*)packet_from_client;
+			
+			vehicle_texture = image_packet->image;
+			image_client_packet = image_packet_init(PostTexture, vehicle_texture, image_packet->id);
+			
+			if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, image_packet->id);
+			tcp_send(socket_desc, &image_client_packet->header);
+			free(image_client_packet);
+			run = 0;		
+		}
+		
 		free(packet_from_client);
 	}
 
