@@ -8,7 +8,7 @@ Implement a distributed videogame
 1. Aprire il terminale e spostarsi in `./game/`
 2. Digitare da terminale il comando `make`
 3. Digitare da terminale il comando `. start_server.sh` per avviare la parte server side
-4. Digitare in un altrio terminale il comando `. start_client.sh` per avviare la parte client side
+4. Digitare in un secondo terminale il comando `. start_client.sh` per avviare la parte client side
 
 Osservazione 1: 
 _Per avviare una modalità multiplayer sarà necessario effettuare il punto 4_
@@ -17,7 +17,7 @@ _tante volte quanti sono i giocatori partecipanti._
 Osservazione 2:
 _La modalità sopra elencata utilizza una mappa di prova (Test Map);_
 _per usufruire di altre mappe digitare al punto 3 il comando `./bin/server/ <map elevation> <map texture>`_
-_dove [<map_elevation>] e [<map_texture>]` sono i file .pgm e .ppm della mappa scelta._
+_dove [<map_elevation>] e [<map_texture>] sono i file .pgm e .ppm della mappa scelta._
 
 
 ### Documentation
