@@ -27,22 +27,18 @@ void welcome_server(void) {
 
 /** CLIENT **/
 void welcome_client(int id) {
-    	char *os_msg = "\nOPERATING SYSTEM PROJECT 2018 - CLIENT SIDE ***\n\n";
-	if(DEBUG) {
-		fprintf(stdout ,"%s", os_msg);
-		fflush(stdout);
-		fprintf(stdout, "Connect to OS SEREVR ip:[%s] port:[%d] with id:[%d] ***\n\n", 
-					SERVER_ADDRESS , TCP_PORT, id);
-		fprintf(stdout,"\n\nJoin the game!! ***\n\n");
-		fflush(stdout);
-	}
+	fprintf(stdout, "Connect to OS SEREVR ip:[%s] port:[%d] with id:[%d] ***\n\n", 
+				SERVER_ADDRESS , TCP_PORT, id);
+	fprintf(stdout,"\n\nJoin the game!! ***\n\n");
+	fflush(stdout);
 }
 
 Image* get_vehicle_texture() {
 
 	Image* my_texture;
 	char image_path[256];
-	
+	fprintf(stdout, "\nOPERATING SYSTEM PROJECT 2018 - CLIENT SIDE ***\n\n");
+	fflush(stdout);
 	fprintf(stdout, "You will be soon connected to the game server.\n");
 	fprintf(stdout, "First, you can choose to use your own image. Only .ppm images are supported.\n");
 	fprintf(stdout, "Insert path ('no' for default vehicle image) :\n");

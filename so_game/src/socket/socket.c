@@ -165,7 +165,7 @@ void udp_send(int socket, struct sockaddr_in *si, const PacketHeader* h) {
 	}
 	
 	int ret = sendto(socket, buffer, size , 0 , (struct sockaddr *) si, sizeof(*si));
-	ERROR_HELPER(ret, "Cannot send to server");
+	ERROR_HELPER(ret, "Cannot send message through udp socket");
 }
 
 int udp_receive(int socket, struct sockaddr_in *si, char *buffer) {
@@ -173,7 +173,7 @@ int udp_receive(int socket, struct sockaddr_in *si, char *buffer) {
 	ssize_t slen = sizeof(*si);
 
 	int ret = recvfrom(socket, buffer, BUFLEN, 0, (struct sockaddr *) si, (socklen_t*) &slen);
-	ERROR_HELPER(ret, "Cannot recv from server");
+	ERROR_HELPER(ret, "Cannot receive from udp socket");
 
 	return ret;
 }
