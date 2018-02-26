@@ -1,6 +1,6 @@
 #pragma once
 #include "world.h"
-#include "vehicle.h"
+#include "../vehicle/vehicle.h"
 
 typedef enum ViewType {Inside, Outside, Global} ViewType;
 

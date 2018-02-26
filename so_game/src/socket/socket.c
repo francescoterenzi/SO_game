@@ -8,8 +8,7 @@
 #include <errno.h>
 
 #include "socket.h"
-#include "common.h"
-#include "so_game_protocol.h"
+#include "../client_server/common.h"
 
 int tcp_server_setup(void) {
 	
@@ -107,13 +106,15 @@ void tcp_send(int socket_desc, PacketHeader* packet){
 	int len =  Packet_serialize(to_send, packet);
 	snprintf(len_to_send, BUFLEN , "%d", len);
 	
-	if(DEBUG) printf("*** Bytes to send : %s\n" , len_to_send);
+	//if(DEBUG) printf("*** Bytes to send : %s\n" , len_to_send);
 	
 	ret = send(socket_desc, len_to_send, sizeof(long int) , 0);
-	ERROR_HELPER(ret, "Cannot send msg to the client");  
+	ERROR_HELPER(ret, "Cannot send msg through tcp socket");  
 	
-	ret = send(socket_desc, to_send, len , 0);
-	ERROR_HELPER(ret, "Cannot send msg to the client");  
+	while((ret = send(socket_desc, to_send, len , 0)) < 0){
+		if(errno == EINTR) continue;
+		ERROR_HELPER(ret, "Cannot send msg through tcp socket");  
+	}
 
 }
 
@@ -123,21 +124,22 @@ int tcp_receive(int socket_desc , char* msg) {
 	char len_to_receive[BUFLEN];
 	
 	ret = recv(socket_desc , len_to_receive , sizeof(long int) , 0);
-	ERROR_HELPER(ret, "Cannot receive from client");
+	ERROR_HELPER(ret, "Cannot receive from tcp socket");
 	
 	int received_bytes = 0;
 	int to_receive = atoi(len_to_receive);
-	if(DEBUG) printf("*** Bytes to_received : %d \n" , to_receive);
+	//if(DEBUG) printf("*** Bytes to_received : %d \n" , to_receive);
 
 	
 	while(received_bytes < to_receive){
 		ret = recv(socket_desc , msg + received_bytes , to_receive - received_bytes , 0);
-	    ERROR_HELPER(ret, "Cannot receive from client");
+		if(ret < 0 && errno == EINTR) continue;
+	    ERROR_HELPER(ret, "Cannot receive from tcp socket");
 	    received_bytes += ret;
 	    
 	    if(ret==0) break;
 	}
-	if(DEBUG) printf("*** Bytes received : %d \n" , ret);
+	//if(DEBUG) printf("*** Bytes received : %d \n" , ret);
 
 	return received_bytes;
 }

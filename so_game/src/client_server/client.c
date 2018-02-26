@@ -11,15 +11,7 @@
 #include <pthread.h>
 #include <time.h>
 
-#include "image.h"
-#include "surface.h"
-#include "world.h"
-#include "vehicle.h"
-#include "world_viewer.h"
-#include "common.h"
-#include "so_game_protocol.h"
-#include "packet.h"
-#include "socket.h"
+#include "kit.h"
 
 
 WorldViewer viewer;
@@ -34,9 +26,7 @@ typedef struct {
   int tcp_desc;
 } UpdaterArgs;
 
-int connectToServer(void);
 void *updater_thread(void *arg);
-void clear(char* buf);
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc);
 
 int main(int argc, char **argv) {
@@ -44,47 +34,22 @@ int main(int argc, char **argv) {
 		printf("usage: %s <server_address>\n", argv[1]);
 		exit(-1);
 	}
+	
 	Image* my_texture;
-	Image* my_texture_for_server;
-	int vehicle_texture_flag;
-	char image_path[256];
 	int ret;
 	
-	fprintf(stdout, "You can use your own image. Only .ppm images are supported.\n");
-	fprintf(stdout, "Insert path ('no' for default vehicle image) :\n");
-	
-	if(scanf("%s",image_path) < 0){
-		fprintf(stderr, "fgets error occured!\n");
-		exit(EXIT_FAILURE);
-	}
-	
-	if(strcmp(image_path, "no") == 0) vehicle_texture_flag = 0;
-	else {
-		char *dot = strrchr(image_path, '.');
-		if (dot == NULL || strcmp(dot, ".ppm")!=0){
-			fprintf(stderr,"Sorry! Image not found or not supported... \n");
-			exit(EXIT_FAILURE);
-		}
-		my_texture = Image_load(image_path);
-		if (my_texture) {
-			printf("Done! \n");
-			my_texture_for_server = my_texture;
-			vehicle_texture_flag = 1;
-		} else {
-			fprintf(stderr,"Sorry! Chose image cannot be loaded... \n");
-			exit(EXIT_FAILURE);
-		}
-	}
-
 	// these come from the server
-	int my_id = -1;
 	Image* map_elevation;
 	Image* map_texture;
 	Image* my_texture_from_server; //vehicle texture
+	int my_id = -1;
 	
+	my_texture = get_vehicle_texture(); // Client will be asked to choose to use default texture or not
+
 	char* buf = (char*)malloc(sizeof(char) * BUFLEN);
 	
 	int socket_desc = tcp_client_setup();	//initiate a connection on the socket	
+	
 	
 	// REQUEST AND GET AN ID
 	clear(buf);
@@ -96,8 +61,9 @@ int main(int argc, char **argv) {
 	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, ret); // Id received!
 	my_id = received_packet->id;
 	
-	if(DEBUG) printf("Id received : %d\n", my_id);
-
+	///f(DEBUG) printf("Id received : %d\n", my_id);
+	
+	welcome_client(my_id);
 
 
     // REQUEST AND GET ELEVATION MAP    
@@ -110,9 +76,10 @@ int main(int argc, char **argv) {
     ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
 	if( (elevation_packet->header).type == PostElevation && elevation_packet->id == 0) {
-		if(DEBUG) printf("%s ELEVATION MAP RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
+		///if(DEBUG) printf("%s ELEVATION MAP RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
-		if(DEBUG) printf(" ERROR, elevation map not received!\n");
+		///if(DEBUG) printf(" ERROR, elevation map not received!\n");
+		fprintf(stderr,"Error: Image corrupted");
 		exit(EXIT_FAILURE);
 	}
 	map_elevation = elevation_packet->image;
@@ -129,9 +96,10 @@ int main(int argc, char **argv) {
     ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
 	if( (texture_packet->header).type == PostTexture && texture_packet->id == 0) {
-		if(DEBUG) printf("%s SURFACE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
+		///if(DEBUG) printf("%s SURFACE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	} else {
-		if(DEBUG) printf(" ERROR, surface texture not received!\n");
+		///if(DEBUG) printf(" ERROR, surface texture not received!\n");
+		fprintf(stderr,"Error: Image corrupted");
 		exit(EXIT_FAILURE);
 	}
     map_texture = texture_packet->image;
@@ -142,23 +110,32 @@ int main(int argc, char **argv) {
 	clear(buf);
 	ImagePacket* vehicleTexture_packet;
 	
-	if(!vehicle_texture_flag) vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id); // client chose default vehicle image
-	else vehicleTexture_packet = image_packet_init(PostTexture, my_texture_for_server, my_id);    // client chose to use his own image
-	tcp_send(socket_desc , &vehicleTexture_packet->header);
-	
-	ret = tcp_receive(socket_desc , buf);
-	
-	ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
-	
-	if( (vehicle_packet->header).type == PostTexture && vehicle_packet->id > 0) {
-		if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
-	} else {
-		if(DEBUG) printf(" ERROR, vehicle texture not received!\n");
-		exit(EXIT_FAILURE);
+	if(my_texture != NULL) {
+		vehicleTexture_packet = image_packet_init(PostTexture, my_texture, my_id);    // client chose to use his own image
+		tcp_send(socket_desc , &vehicleTexture_packet->header);
+		my_texture_from_server = my_texture;
 	}
-	my_texture_from_server = vehicle_packet->image;
+	else {
+		vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id); // client chose default vehicle image
+		tcp_send(socket_desc , &vehicleTexture_packet->header);
+		
+		ret = tcp_receive(socket_desc , buf);
+		
+		ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
+		
+		if( (vehicle_packet->header).type == PostTexture && vehicle_packet->id > 0) {
+			///if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
+		} else {
+			///if(DEBUG) printf(" ERROR, vehicle texture not received!\n");
+			fprintf(stderr,"Error: Image corrupted");
+			exit(EXIT_FAILURE);
+		}
+		my_texture_from_server = vehicle_packet->image;
+		free(vehicle_packet);
+    }
 	
-	if(DEBUG) printf("%s ALL TEXTURES RECEIVED\n", TCP_SOCKET_NAME);
+	///if(DEBUG) printf("%s ALL TEXTURES RECEIVED\n", TCP_SOCKET_NAME);
+	
 	
 	// construct the world
 	World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
@@ -201,7 +178,6 @@ int main(int argc, char **argv) {
 	Packet_free(&elevation_packet->header);
 	
 	Packet_free(&vehicleTexture_packet->header);
-	Packet_free(&vehicle_packet->header);
 	free(buf);
 	
 	return 0;             
@@ -240,9 +216,8 @@ void *updater_thread(void *args) {
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
 
 	int numb_of_vehicles = deserialized_wu_packet->num_vehicles;
-	int world_size = world.vehicles.size;
 	
-	if(numb_of_vehicles > world_size) {
+	if(numb_of_vehicles > world.vehicles.size) {
 		int i;
 		for(i=0; i<numb_of_vehicles; i++) {
 			int v_id = deserialized_wu_packet->updates[i].id;
@@ -260,12 +235,12 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
 				Vehicle_init(v,&world, v_id, vehicle_packet->image);
 				
 				World_addVehicle(&world, v);
-				printf("%s new vehicle added with id: %d\n", UDP_SOCKET_NAME, v_id);
+				update_info(&world, v_id, 1);
 			} 
 		}
 	}
 	
-	else if(numb_of_vehicles < world_size) {
+	else if(numb_of_vehicles < world.vehicles.size) {
 		ListItem* item=world.vehicles.first;
 		int i, find = 0;
 		while(item){
@@ -277,8 +252,8 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
 			}
 
 			if (find == 0) {
-				printf("client %d disconnected\n", v->id);
 				World_detachVehicle(&world, v);
+				update_info(&world, vehicle_id, 0);
 			}
 
 			find = 0;
@@ -287,7 +262,7 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc) {
 	}
 
 	int i;
-	for(i=0; i<world_size; i++) {
+	for(i = 0 ; i < world.vehicles.size ; i++) {
 		Vehicle *v = World_getVehicle(&world, deserialized_wu_packet->updates[i].id);
 		
 		v->x = deserialized_wu_packet->updates[i].x;

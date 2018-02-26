@@ -1,7 +1,7 @@
 #ifndef _SOCKET_H_
 #define _SOCKET_H_
 
-#include "so_game_protocol.h"
+#include "../protocol/so_game_protocol.h"
 
 #define SERVER_ADDRESS    "127.0.0.1"
 #define UDP_SOCKET_NAME   "[UDP]"

@@ -11,21 +11,12 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#include "image.h"
-#include "surface.h"
-#include "world.h"
-#include "vehicle.h"
-#include "world_viewer.h"
-#include "so_game_protocol.h"
-#include "common.h"
-#include "packet.h"
-#include "socket.h"
+#include "kit.h"
 
 
 void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
-void clear(char* buf);
 void world_update(VehicleUpdatePacket *deserialized_vehicle_packet);
 
 
@@ -43,20 +34,24 @@ int id;
 
 int main(int argc, char **argv) {
 	
-	if (argc<3) {
-	printf("usage: %s <elevation_image> <texture_image>\n", argv[1]);
+	if (argc<4) {
+	printf("usage: %s <elevation_image> <texture_image> <vehicle_texture>\n", argv[1]);
 		exit(-1);
 	}
 
 	char* elevation_filename=argv[1];
 	char* texture_filename=argv[2];
-	char* vehicle_texture_filename="./images/arrow-right.ppm";
+	char* vehicle_texture_filename=argv[3];
 	
 	// load the images
 	surface_elevation = Image_load(elevation_filename);
 	surface_texture = Image_load(texture_filename);
 	vehicle_texture = Image_load(vehicle_texture_filename);
 	
+	if(!surface_elevation || !surface_texture || !vehicle_texture) {
+		fprintf(stderr,"Errore nel caricamento delle immagini di default\n");
+		exit(EXIT_FAILURE);
+	}
 	
 	// creating the world
 	World_init(&world, surface_elevation, surface_texture, 0.5, 0.5, 0.5);
@@ -94,8 +89,7 @@ void *tcp_handler(void *arg) {
 
 	id = 1;
 	
-	if(DEBUG) fprintf(stdout ,"**Server ready to accept incoming connections!**\n");
-	fflush(stdout);
+	welcome_server();
 	
 	while (1) {		
 		
@@ -138,7 +132,6 @@ void *tcp_client_handler(void *arg){
 	IdPacket* id_packet;
 	ImagePacket* elevation_packet;
 	ImagePacket* texture_packet;
-	ImagePacket* image_client_packet;
     
     while(run) {		
 		clear(buf);		
@@ -191,11 +184,6 @@ void *tcp_client_handler(void *arg){
 			ImagePacket* image_packet = (ImagePacket*)packet_from_client;
 			
 			client_image = image_packet->image;
-			image_client_packet = image_packet_init(PostTexture, image_packet->image, image_packet->id);
-			
-			if(DEBUG) printf("%s SENDING VECHICLE TEXTURE TO CLIENT %d\n", TCP_SOCKET_NAME, image_packet->id);
-			tcp_send(socket_desc, &image_client_packet->header);
-			free(image_client_packet);
 			run = 0;		
 		}
 		
@@ -251,7 +239,7 @@ void *tcp_client_handler(void *arg){
 	World_detachVehicle(&world, vehicle);
 
 	ret = close(socket_desc);
-    ERROR_HELPER(ret, "Cannot close socket for incoming connection");
+    ERROR_HELPER(ret, "Cannot close socket");
     
     free(args);
     free(buf);

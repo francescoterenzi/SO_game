@@ -1,6 +1,6 @@
 #pragma once
-#include "vec3.h"
-#include "image.h"
+#include "../vehicle/vec3.h"
+#include "../image/image.h"
 
 struct Surface;
 typedef void (*SurfaceDtor)(struct Surface* self);

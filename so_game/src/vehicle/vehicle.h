@@ -1,7 +1,7 @@
 #pragma once
-#include "surface.h"
-#include "image.h"
-#include "linked_list.h"
+#include "../surface/surface.h"
+#include "../image/image.h"
+#include "../linked_list/linked_list.h"
 
 
 struct World;

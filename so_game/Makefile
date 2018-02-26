@@ -8,28 +8,30 @@ BINS=libso_game.a\
      server\
      client
 
-OBJS = vec3.o\
-       linked_list.o\
-       surface.o\
-       image.o\
-       vehicle.o\
-       world.o\
-       world_viewer.o\
-       so_game_protocol.o\
-	   packet.o\
-	   socket.o
+OBJS = src/vehicle/vec3.o\
+       src/linked_list/linked_list.o\
+       src/surface/surface.o\
+       src/image/image.o\
+       src/vehicle/vehicle.o\
+       src/world/world.o\
+       src/world/world_viewer.o\
+       src/protocol/so_game_protocol.o\
+	   src/packet/packet.o\
+	   src/socket/socket.o\
+	   src/client_server/kit.o
 
 HEADERS=helpers.h\
-	image.h\
-	linked_list.h\
-	so_game_protocol.h\
-	surface.h\
-	vec3.h\
-	vehicle.h\
-	world.h\
-	world_viewer.h\
-	packet.h\
-	socket.h
+	src/image/image.h\
+	src/linked_list/linked_list.h\
+	src/protocol/so_game_protocol.h\
+	src/surface/surface.h\
+	src/vehicle/vec3.h\
+	src/vehicle/vehicle.h\
+	src/world/world.h\
+	src/world/world_viewer.h\
+	src/packet/packet.h\
+	src/socket/socket.h\
+	src/client_server/kit.h
 
 %.o:	%.c $(HEADERS)
 	$(CC) $(CCOPTS) -c -o $@  $<
@@ -39,15 +41,16 @@ HEADERS=helpers.h\
 
 all:	$(BINS) 
 
+
 libso_game.a: $(OBJS) 
-	$(AR) -rcs $@ $^
+	$(AR) -rcs ./bin/$@ $^
 	$(RM) $(OBJS)
 	
-server: ./server.c libso_game.a 
-	$(CC) $(CCOPTS) -Ofast -o $@ $^ $(LIBS)
+server: ./src/client_server/server.c ./bin/libso_game.a 
+	$(CC) $(CCOPTS) -Ofast -o ./bin/$@ $^ $(LIBS)
 
-client: ./client.c libso_game.a 
-	$(CC) $(CCOPTS) -Ofast -o $@ $^ $(LIBS)
+client: ./src/client_server/client.c ./bin/libso_game.a 
+	$(CC) $(CCOPTS) -Ofast -o ./bin/$@ $^ $(LIBS) 
 
 clean:
-	rm -rf *.o *~  $(BINS)
+	rm -rf *.o *~  ./bin/* 

@@ -1,7 +1,7 @@
 #include "vehicle.h"
 #include <GL/gl.h>
 #include <math.h>
-#include "world.h"
+#include "../world/world.h"
 
 int Vehicle_update(Vehicle* v, float dt){
   float tf=v->translational_force_update;

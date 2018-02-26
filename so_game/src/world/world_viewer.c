@@ -5,8 +5,8 @@
 #include <assert.h>
 #include "world_viewer.h"
 #include <unistd.h>
-#include "image.h"
-#include "surface.h"
+#include "../image/image.h"
+#include "../surface/surface.h"
 
 int window;
 
