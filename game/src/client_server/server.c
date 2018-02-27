@@ -17,7 +17,6 @@
 void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
-void world_update(VehicleUpdatePacket *deserialized_vehicle_packet);
 
 
 World world;
@@ -201,25 +200,12 @@ void *udp_handler(void *arg) {
 	while(1) {
 
 		res = udp_receive(udp_socket, &udp_client_addr, buffer);
-		VehicleUpdatePacket* deserialized_vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
+		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
 		
-		world_update(deserialized_vehicle_packet);
+		world_update(vehicle_packet, &world);
 
 		WorldUpdatePacket* world_packet = world_update_init(&world);		
 		udp_send(udp_socket, &udp_client_addr, &world_packet->header);
 	}
 	return NULL;
-}
-
-
-void world_update(VehicleUpdatePacket *deserialized_vehicle_packet) {
-	
-	int vehicle_id = deserialized_vehicle_packet->id;
-		
-	Vehicle* v = World_getVehicle(&world, vehicle_id);
-	v->rotational_force_update = deserialized_vehicle_packet->rotational_force;
-	v->translational_force_update = deserialized_vehicle_packet->translational_force; 
-
-	World_update(&world);
-
 }

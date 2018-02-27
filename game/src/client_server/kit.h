@@ -22,6 +22,7 @@ typedef struct thread_args {
 } thread_args;
 
 void welcome_server(void);
+void world_update(VehicleUpdatePacket *vehicle_packet, World *world);
 
 /** CLIENT **/
 typedef struct {

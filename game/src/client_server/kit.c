@@ -25,6 +25,18 @@ void welcome_server(void) {
 	}
 }
 
+void world_update(VehicleUpdatePacket *vehicle_packet, World *world) {
+	
+	int id = vehicle_packet->id;
+		
+	Vehicle* v = World_getVehicle(world, id);
+	v->rotational_force_update = vehicle_packet->rotational_force;
+	v->translational_force_update = vehicle_packet->translational_force; 
+
+	World_update(world);
+}
+
+
 
 /** CLIENT **/
 void welcome_client(int id) {
