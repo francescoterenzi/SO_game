@@ -13,11 +13,6 @@
 
 #include "kit.h"
 
-// globals
-WorldViewer viewer;
-World world;
-Vehicle* vehicle;
-
 int main(int argc, char **argv) {
 
 	if (argc<2) {
@@ -25,9 +20,12 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
+	// for the world
+	World world;
+	Vehicle* vehicle;
+
 	int ret;
 	
-	// these come from the server
 	Image* map_elevation;
 	Image* map_texture;
 	Image* vehicle_texture; //vehicle texture
