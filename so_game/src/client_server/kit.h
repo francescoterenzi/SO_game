@@ -12,13 +12,9 @@
 #include "common.h"
 
 void clear(char* buf);
-
 void welcome_server(void);
-
 void update_info(World *world, int id, int flag);
-
 void welcome_client(int id);
-
 Image* get_vehicle_texture(void);
 
 #endif
