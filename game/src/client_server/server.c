@@ -13,8 +13,6 @@
 
 #include "kit.h"
 
-
-void *tcp_handler(void *arg);
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
 
@@ -24,7 +22,7 @@ Image* surface_texture;
 Image* surface_elevation;
 Image* vehicle_texture;
 
-int id;
+int *run_server;
 
 int main(int argc, char **argv) {
 	
@@ -50,41 +48,26 @@ int main(int argc, char **argv) {
 	// creating the world
 	World_init(&world, surface_elevation, surface_texture, 0.5, 0.5, 0.5);
 	
-	int ret;
-	pthread_t tcp_thread;
+	*run_server = 1;
+	
+	int id = 1, ret, client_desc;
 	pthread_t udp_thread;
 	
-	//Creating tcp socket..
-	ret = pthread_create(&tcp_thread, NULL, tcp_handler, NULL);
-	PTHREAD_ERROR_HELPER(ret, "Cannot create the udp_thread!");
-	
-	//Creating udp socket..
+	//Creating udp thread
 	ret = pthread_create(&udp_thread, NULL, udp_handler, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the udp_thread!");
 	
-	//Joining udp and tcp sockets.
-	ret = pthread_join(tcp_thread, NULL);
-	PTHREAD_ERROR_HELPER(ret, "Cannot join the tcp_thread!");
-	ret = pthread_join(udp_thread, NULL);
-	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
 	
-	exit(EXIT_SUCCESS); 
-}
-
-void *tcp_handler(void *arg) {
-	int ret, client_desc;
-
 	int socket_desc = tcp_server_setup();
 	int sockaddr_len = sizeof(struct sockaddr_in); // we will reuse it for accept()
 
 
 	// we allocate client_addr dynamically and initialize it to zero
 	struct sockaddr_in *client_addr = calloc(1, sizeof(struct sockaddr_in));
-	id = 1;
 	
 	welcome_server();
 	
-	while (1) {		
+	while (*run_server) {		
 		
 		// accept incoming connection
 		client_desc = accept(socket_desc, (struct sockaddr *)client_addr, (socklen_t *)&sockaddr_len);
@@ -113,9 +96,14 @@ void *tcp_handler(void *arg) {
 
 	}
 	
-	return NULL;
-
+	//Joining udp thread
+	ret = pthread_join(udp_thread, NULL);
+	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
+	
+	exit(EXIT_SUCCESS); 
 }
+
+
 
 void *tcp_client_handler(void *arg){
 
@@ -197,7 +185,7 @@ void *udp_handler(void *arg) {
 	int res;
 	char buffer[BUFLEN];
 
-	while(1) {
+	while(*run_server) {
 
 		res = udp_receive(udp_socket, &udp_client_addr, buffer);
 		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
