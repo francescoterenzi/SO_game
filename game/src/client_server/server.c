@@ -22,7 +22,7 @@ Image* surface_texture;
 Image* surface_elevation;
 Image* vehicle_texture;
 
-int *run_server;
+int run_server;
 
 int main(int argc, char **argv) {
 	
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
 	// creating the world
 	World_init(&world, surface_elevation, surface_texture, 0.5, 0.5, 0.5);
 	
-	*run_server = 1;
+	run_server = 1;
 	
 	int id = 1, ret, client_desc;
 	pthread_t udp_thread;
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
 	
 	welcome_server();
 	
-	while (*run_server) {		
+	while (run_server) {		
 		
 		// accept incoming connection
 		client_desc = accept(socket_desc, (struct sockaddr *)client_addr, (socklen_t *)&sockaddr_len);
@@ -185,7 +185,7 @@ void *udp_handler(void *arg) {
 	int res;
 	char buffer[BUFLEN];
 
-	while(*run_server) {
+	while(run_server) {
 
 		res = udp_receive(udp_socket, &udp_client_addr, buffer);
 		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
