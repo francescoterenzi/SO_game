@@ -6,39 +6,8 @@
 #include <unistd.h>
 #include <time.h>
 
-#include "kit.h"
+#include "client_kit.h"
 
-void clear(char* buf){
-	memset(buf , 0 , BUFLEN * sizeof(char));
-}
-
-
-/** SERVER **/
-void welcome_server(void) {
-	char *os_msg = "\nOPERATING SYSTEM PROJECT 2018 - SERVER SIDE ***\n\n";
-	if(DEBUG) {
-		fprintf(stdout ,"%s", os_msg);
-		fflush(stdout);
-		fprintf(stdout, "OS SERVER ip:[%s] port:[%d] ready to accept incoming connections! ***\n\n", 
-					SERVER_ADDRESS , TCP_PORT);
-		fflush(stdout);
-	}
-}
-
-void world_update(VehicleUpdatePacket *vehicle_packet, World *world) {
-	
-	int id = vehicle_packet->id;
-		
-	Vehicle* v = World_getVehicle(world, id);
-	v->rotational_force_update = vehicle_packet->rotational_force;
-	v->translational_force_update = vehicle_packet->translational_force; 
-
-	World_update(world);
-}
-
-
-
-/** CLIENT **/
 void welcome_client(int id) {
 	fprintf(stdout, "\n\nConnect to OS SEREVR ip:[%s] port:[%d] with id:[%d] ***\n", 
 				SERVER_ADDRESS , TCP_PORT, id);
@@ -80,28 +49,7 @@ Image* get_vehicle_texture() {
 	return NULL; // will never be reached
 }
 
-void update_info(World *world, int id, int flag) {
 
-	time_t rawtime;
-	struct tm * timeinfo;
-
-	time ( &rawtime );
-	timeinfo = localtime ( &rawtime );
-
-	char buffer[1024];
-	if(flag) {
-		sprintf(buffer, "- new client id:[%d] connected", id);
-	} 
-	else {
-		sprintf(buffer, "- client id:[%d] closed the game", id);
-	}
-
-	if(DEBUG) {
-	fprintf(stdout, "update %s%s\n- number of vehicles connected %d ***\n\n", 
-			asctime(timeinfo), buffer, world->vehicles.size);
-	fflush(stdout);
-	}
-}
 
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, World *world) {
 
@@ -204,3 +152,4 @@ void *updater_thread(void *args) {
 
 	return 0;
 }
+

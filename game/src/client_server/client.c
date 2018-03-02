@@ -11,7 +11,7 @@
 #include <pthread.h>
 #include <time.h>
 
-#include "kit.h"
+#include "client_kit.h"
 
 int main(int argc, char **argv) {
 

@@ -1,5 +1,4 @@
-#ifndef _KIT_H_
-#define _KIT_H_
+#pragma once
 
 #include "../image/image.h"
 #include "../surface/surface.h"
@@ -11,20 +10,6 @@
 #include "../socket/socket.h"
 #include "common.h"
 
-/** COMMON **/
-void clear(char* buf);
-void update_info(World *world, int id, int flag);
-
-/** SERVER **/
-typedef struct thread_args {
-	int id;
-	int socket_desc;	
-} thread_args;
-
-void welcome_server(void);
-void world_update(VehicleUpdatePacket *vehicle_packet, World *world);
-
-/** CLIENT **/
 typedef struct {
   volatile int run;
   int id;
@@ -38,5 +23,3 @@ void welcome_client(int id);
 Image* get_vehicle_texture(void);
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, World *world);
 void *updater_thread(void *arg);
-
-#endif

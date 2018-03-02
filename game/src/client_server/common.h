@@ -1,5 +1,6 @@
-#ifndef COMMON_H
-#define COMMON_H
+#pragma once
+
+#include "../world/world.h"
 
 // macro to simplify error handling
 #define GENERIC_ERROR_HELPER(cond, errCode, msg) do {               \
@@ -14,4 +15,6 @@
 
 #define DEBUG           1   // display debug messages
 #define BUFLEN          1000000
-#endif
+
+void clear(char* buf);
+void update_info(World *world, int id, int flag);

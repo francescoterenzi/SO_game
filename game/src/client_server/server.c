@@ -11,7 +11,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#include "kit.h"
+#include "server_kit.h"
 
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
