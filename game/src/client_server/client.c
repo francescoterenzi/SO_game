@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
 	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, ret); // Id received!
 	my_id = received_packet->id;
 	
-	///f(DEBUG) printf("Id received : %d\n", my_id);
+	///if(DEBUG) printf("Id received : %d\n", my_id);
 	
 	welcome_client(my_id);
 
@@ -60,13 +60,12 @@ int main(int argc, char **argv) {
     
     ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
-	if( (elevation_packet->header).type == PostElevation && elevation_packet->id == 0) {
-		///if(DEBUG) printf("%s ELEVATION MAP RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
-	} else {
-		///if(DEBUG) printf(" ERROR, elevation map not received!\n");
+	if( (elevation_packet->header).type != PostElevation || elevation_packet->id != 0) {
 		fprintf(stderr,"Error: Image corrupted");
-		exit(EXIT_FAILURE);
+		exit(EXIT_FAILURE);		
 	}
+	///if(DEBUG) printf("%s ELEVATION MAP RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
+	
 	map_elevation = elevation_packet->image;
 	
 	
@@ -80,13 +79,12 @@ int main(int argc, char **argv) {
 
     ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
-	if( (texture_packet->header).type == PostTexture && texture_packet->id == 0) {
-		///if(DEBUG) printf("%s SURFACE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
-	} else {
-		///if(DEBUG) printf(" ERROR, surface texture not received!\n");
+	if( (texture_packet->header).type != PostTexture || texture_packet->id != 0) {
 		fprintf(stderr,"Error: Image corrupted");
-		exit(EXIT_FAILURE);
+		exit(EXIT_FAILURE);		
 	}
+	///if(DEBUG) printf("%s SURFACE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
+	
     map_texture = texture_packet->image;
 
 
@@ -96,14 +94,9 @@ int main(int argc, char **argv) {
 	ImagePacket* vehicleTexture_packet;
 	
 	if(vehicle_texture) {
-
 		vehicleTexture_packet = image_packet_init(PostTexture, vehicle_texture, my_id);    // client chose to use his own image
 		tcp_send(socket_desc , &vehicleTexture_packet->header);
-
-	}
-
-	else {
-
+	} else {
 		vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id); // client chose default vehicle image
 		
 		tcp_send(socket_desc , &vehicleTexture_packet->header);	
@@ -111,13 +104,12 @@ int main(int argc, char **argv) {
 		
 		ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 		
-		if( (vehicle_packet->header).type == PostTexture && vehicle_packet->id > 0) {
-			///if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
-		} else {
-			///if(DEBUG) printf(" ERROR, vehicle texture not received!\n");
+		if( (vehicle_packet->header).type != PostTexture || vehicle_packet->id <= 0) {
 			fprintf(stderr,"Error: Image corrupted");
-			exit(EXIT_FAILURE);
+			exit(EXIT_FAILURE);			
 		}
+		///if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
+		
 		vehicle_texture = vehicle_packet->image;
 		free(vehicle_packet);
     }
