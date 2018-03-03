@@ -179,7 +179,9 @@ void *tcp_client_handler(void *arg){
 
 	World_detachVehicle(&world, v);
 	update_info(&world, args->id, 0);
-
+	
+	Server_detachSocket(&socket_list , socket_desc);
+	
 	int ret = close(socket_desc);
     ERROR_HELPER(ret, "Cannot close socket");
     
@@ -216,5 +218,5 @@ void signal_handler(int sig){
 	
 	Server_socketClose(&socket_list);
 	Server_listFree(&socket_list);
-	exit(0);
+	//exit(0);
 }

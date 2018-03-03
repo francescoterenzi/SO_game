@@ -44,6 +44,21 @@ int Server_addSocket(ListHead* l, int sock){
 	return ((ServerListItem*)result)->info;
 }
 
+ServerListItem* Server_getSocket(ListHead* l, int sock){
+	ListItem* item = l->first;
+	while(item){
+		ServerListItem* v=(ServerListItem*)item;
+		if(v->info==sock) return v;
+		item=item->next;
+	}
+	return NULL;
+}
+
+void Server_detachSocket(ListHead* l, int sock){
+	ServerListItem* to_remove = Server_getSocket(l,sock);
+	List_detach(l, (ListItem*)to_remove);
+}
+
 void Server_listFree(ListHead* l){
 	ListItem *item = l->first;
 	int size = l->size;
