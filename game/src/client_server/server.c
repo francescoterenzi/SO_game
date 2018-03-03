@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
+#include <signal.h>
 
 // for the udp_socket
 #include <arpa/inet.h>
@@ -15,6 +16,7 @@
 
 void *udp_handler(void *arg);
 void *tcp_client_handler(void *arg);
+void signal_handler(int sig);
 
 
 World world;
@@ -23,6 +25,7 @@ Image* surface_elevation;
 Image* vehicle_texture;
 
 int run_server;
+ListHead socket_list;
 
 int main(int argc, char **argv) {
 	
@@ -49,6 +52,8 @@ int main(int argc, char **argv) {
 	World_init(&world, surface_elevation, surface_texture, 0.5, 0.5, 0.5);
 	
 	run_server = 1;
+	signal(SIGINT,signal_handler);
+	List_init(&socket_list);
 	
 	int id = 1, ret, client_desc;
 	pthread_t udp_thread;
@@ -78,6 +83,12 @@ int main(int argc, char **argv) {
 		Vehicle *vehicle=(Vehicle*) malloc(sizeof(Vehicle));
 		Vehicle_init(vehicle, &world, id, vehicle_texture);
 		World_addVehicle(&world, vehicle);
+		
+		Server_addSocket(&socket_list , client_desc);
+		/*int res = Server_addSocket(&socket_list , client_desc);
+		fprintf(stdout,"socket:%d\n",client_desc);
+		fprintf(stdout,"socket_list:%d\n",res);
+		fflush(stdout);*/
 
 		pthread_t thread;
 		thread_args* args = (thread_args*)malloc(sizeof(thread_args));
@@ -196,4 +207,14 @@ void *udp_handler(void *arg) {
 		udp_send(udp_socket, &udp_client_addr, &world_packet->header);
 	}
 	return NULL;
+}
+
+void signal_handler(int sig){
+	run_server = 0;
+	if(DEBUG) fprintf(stdout,"closing\n");
+	fflush(stdout);
+	
+	Server_socketClose(&socket_list);
+	Server_listFree(&socket_list);
+	exit(0);
 }

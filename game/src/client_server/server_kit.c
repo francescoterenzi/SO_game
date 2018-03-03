@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <errno.h>
 
 #include "server_kit.h"
 
@@ -29,3 +30,45 @@ void world_update(VehicleUpdatePacket *vehicle_packet, World *world) {
 
 	World_update(world);
 }
+
+ServerListItem* ServerListItem_init(int sock){
+	ServerListItem* item = (ServerListItem*) malloc(sizeof(ServerListItem));
+	item->info = sock;
+	item->list.prev = NULL;
+	item->list.next = NULL;
+}
+
+int Server_addSocket(ListHead* l, int sock){
+	ServerListItem* item = ServerListItem_init(sock);	
+	ListItem* result = List_insert(l, l->last, (ListItem*)item);
+	return ((ServerListItem*)result)->info;
+}
+
+void Server_listFree(ListHead* l){
+	ListItem *item = l->first;
+	int size = l->size;
+	int i;
+	for(i=0; i < size; i++) {
+		ServerListItem *v = (ServerListItem*) item;
+		item = item->next;
+		free(v);
+		
+	}
+}
+
+void Server_socketClose(ListHead* l){
+	ListItem* item = l->first;
+	int i;
+	for(i = 0; i < l->size; i++) {
+
+		ServerListItem* v = (ServerListItem*) item;
+		int client_desc = v->info;
+		
+		//if(DEBUG) fprintf(stdout,"closing socket...%d\n", client_desc);
+		//fflush(stdout);
+		int ret = close(client_desc);
+        ERROR_HELPER(ret, "Cannot close socket");
+		item = item->next;
+	}
+}
+
