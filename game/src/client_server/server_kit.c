@@ -60,18 +60,19 @@ void Server_detachSocket(ListHead* l, int sock){
 }
 
 void Server_listFree(ListHead* l){
+	if(l->first == NULL) return;
 	ListItem *item = l->first;
 	int size = l->size;
 	int i;
 	for(i=0; i < size; i++) {
 		ServerListItem *v = (ServerListItem*) item;
 		item = item->next;
-		free(v);
-		
+		free(v);		
 	}
 }
 
 void Server_socketClose(ListHead* l){
+	if(l->first == NULL) return;
 	ListItem* item = l->first;
 	int i;
 	for(i = 0; i < l->size; i++) {

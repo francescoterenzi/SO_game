@@ -25,6 +25,7 @@ Image* surface_elevation;
 Image* vehicle_texture;
 
 int run_server;
+int socket_desc;
 ListHead socket_list;
 
 int main(int argc, char **argv) {
@@ -63,7 +64,7 @@ int main(int argc, char **argv) {
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the udp_thread!");
 	
 	
-	int socket_desc = tcp_server_setup();
+	socket_desc = tcp_server_setup();
 	int sockaddr_len = sizeof(struct sockaddr_in); // we will reuse it for accept()
 
 
@@ -76,8 +77,8 @@ int main(int argc, char **argv) {
 		
 		// accept incoming connection
 		client_desc = accept(socket_desc, (struct sockaddr *)client_addr, (socklen_t *)&sockaddr_len);
-		if (client_desc == -1 && errno == EINTR)
-			continue; // check for interruption by signals
+		if (client_desc == -1 && errno == EINTR) continue; // check for interruption by signals
+		if(client_desc == -1 && run_server == 0) break;    // server is closing
 		ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
 				
 		Vehicle *vehicle=(Vehicle*) malloc(sizeof(Vehicle));
@@ -85,6 +86,7 @@ int main(int argc, char **argv) {
 		World_addVehicle(&world, vehicle);
 		
 		Server_addSocket(&socket_list , client_desc);
+		
 		/*int res = Server_addSocket(&socket_list , client_desc);
 		fprintf(stdout,"socket:%d\n",client_desc);
 		fprintf(stdout,"socket_list:%d\n",res);
@@ -111,6 +113,9 @@ int main(int argc, char **argv) {
 	ret = pthread_join(udp_thread, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
 	
+	if(DEBUG) fprintf(stdout,"Closing server, goodbye!...\n");
+	fflush(stdout);
+	
 	exit(EXIT_SUCCESS); 
 }
 
@@ -120,13 +125,13 @@ void *tcp_client_handler(void *arg){
 
 	thread_args* args = (thread_args*)arg;
 	
-	int socket_desc = args->socket_desc;
+	int socket = args->socket_desc;
 	char buf[BUFLEN];
     int run = 1;
 
-    while(run) {
+    while(run && run_server) {
 		
-		int ret = tcp_receive(socket_desc , buf);
+		int ret = tcp_receive(socket , buf);
 		
 		if(!ret) run = 0;
 		
@@ -138,14 +143,14 @@ void *tcp_client_handler(void *arg){
 				
 				case GetId: { 
 					IdPacket* id_packet = id_packet_init(GetId, args->id);
-					tcp_send(socket_desc, &id_packet->header); 
+					tcp_send(socket, &id_packet->header); 
 					free(id_packet);
 					break;
 				}
 				
 				case GetElevation: {  
 					ImagePacket* elevation_packet = image_packet_init(PostElevation, surface_elevation , 0);
-					tcp_send(socket_desc, &elevation_packet->header);
+					tcp_send(socket, &elevation_packet->header);
 					free(elevation_packet);
 					break;
 				}
@@ -154,12 +159,12 @@ void *tcp_client_handler(void *arg){
 					
 					if(!((ImagePacket*) packet)->id){  
 						ImagePacket* texture_packet = image_packet_init(PostTexture, surface_texture , 0);
-						tcp_send(socket_desc, &texture_packet->header);
+						tcp_send(socket, &texture_packet->header);
 					}
 					else { 
 						Vehicle *v = World_getVehicle(&world, ((ImagePacket*) packet)->id);
 						ImagePacket* texture_packet = image_packet_init(PostTexture, v->texture, ((ImagePacket*) packet)->id);
-						tcp_send(socket_desc, &texture_packet->header);
+						tcp_send(socket, &texture_packet->header);
 					}
 					break;			
 				}
@@ -180,12 +185,16 @@ void *tcp_client_handler(void *arg){
 	World_detachVehicle(&world, v);
 	update_info(&world, args->id, 0);
 	
-	Server_detachSocket(&socket_list , socket_desc);
-	
-	int ret = close(socket_desc);
-    ERROR_HELPER(ret, "Cannot close socket");
-    
+	if(run_server) {
+		Server_detachSocket(&socket_list , socket);
+		int ret = close(socket);
+		ERROR_HELPER(ret, "Cannot close socket");
+    }
     free(args);
+    
+    if(DEBUG) fprintf(stdout,"closing tcp thread...\n");
+	fflush(stdout);
+	
     pthread_exit(NULL);
 
 }
@@ -208,15 +217,28 @@ void *udp_handler(void *arg) {
 		WorldUpdatePacket* world_packet = world_update_init(&world);		
 		udp_send(udp_socket, &udp_client_addr, &world_packet->header);
 	}
+	
+	if(DEBUG) fprintf(stdout,"closing upd thread...\n");
+	fflush(stdout);
+	
 	return NULL;
 }
 
 void signal_handler(int sig){
 	run_server = 0;
-	if(DEBUG) fprintf(stdout,"closing\n");
+	if(DEBUG) fprintf(stdout,"Closing...\n");
 	fflush(stdout);
 	
 	Server_socketClose(&socket_list);
 	Server_listFree(&socket_list);
+	
+	int ret = close(socket_desc);
+	ERROR_HELPER(ret, "Cannot close socket");
+	
+	/* 
+	 * Non so perchè, se non c'è nessun client connesso 
+	 * chiude tutti i socket ma il server non termina e neanche udp thread
+	 * */
+	
 	//exit(0);
 }
