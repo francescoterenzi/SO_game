@@ -72,14 +72,14 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, W
 				int ret = tcp_receive(socket_desc , buffer);
     			vehicle_packet = (ImagePacket*) Packet_deserialize(buffer, ret);
 
+
 				Vehicle *v = (Vehicle*) malloc(sizeof(Vehicle));
 				Vehicle_init(v,world, v_id, vehicle_packet->image);
 				World_addVehicle(world, v);
 
-				/*
-				Image_save(vehicle_packet->image, msg);
+				//Image_save(vehicle_packet->image, msg);
 				update_info(world, v_id, 1);
-				*/
+				
 			} 
 		}
 	}
