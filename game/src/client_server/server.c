@@ -56,7 +56,8 @@ int main(int argc, char **argv) {
 	signal(SIGINT,signal_handler);
 	List_init(&socket_list);
 	
-	int id = 1, ret, client_desc;
+	int id = 1;
+	int ret, client_desc;
 	pthread_t udp_thread;
 	
 	//Creating udp thread
@@ -86,16 +87,11 @@ int main(int argc, char **argv) {
 		World_addVehicle(&world, vehicle);
 		
 		Server_addSocket(&socket_list , client_desc);
-		
-		/*int res = Server_addSocket(&socket_list , client_desc);
-		fprintf(stdout,"socket:%d\n",client_desc);
-		fprintf(stdout,"socket_list:%d\n",res);
-		fflush(stdout);*/
 
 		pthread_t thread;
 		thread_args* args = (thread_args*)malloc(sizeof(thread_args));
 		args->socket_desc = client_desc;
-		args->id = id; //here I set id for the client
+		args->id = id;  //here assigned id to client
 
 		update_info(&world, id, 1);
 		
@@ -113,8 +109,14 @@ int main(int argc, char **argv) {
 	ret = pthread_join(udp_thread, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
 	
-	if(DEBUG) fprintf(stdout,"Closing server, goodbye!...\n");
-	fflush(stdout);
+	World_destroy(&world);
+	Image_free(surface_elevation);
+	Image_free(surface_texture);
+	Image_free(vehicle_texture);
+	
+	free(client_addr);
+	
+	goodbye_server();
 	
 	exit(EXIT_SUCCESS); 
 }
@@ -128,12 +130,22 @@ void *tcp_client_handler(void *arg){
 	int socket = args->socket_desc;
 	char buf[BUFLEN];
     int run = 1;
+    int client_id = args->id;
 
     while(run && run_server) {
 		
 		int ret = tcp_receive(socket , buf);
 		
-		if(!ret) run = 0;
+		if(ret == -1){
+			if(run_server == 0){
+				//fprintf(stdout,"Client [%d] : Connection closed\n" , client_id);
+				run = 0;
+				break;
+			}
+			ERROR_HELPER(ret, "Cannot receive from tcp socket");
+		}
+		
+		else if(!ret) run = 0;
 		
 		else {
 
@@ -142,7 +154,7 @@ void *tcp_client_handler(void *arg){
 			switch(packet->type) {
 				
 				case GetId: { 
-					IdPacket* id_packet = id_packet_init(GetId, args->id);
+					IdPacket* id_packet = id_packet_init(GetId, client_id);
 					tcp_send(socket, &id_packet->header); 
 					free(id_packet);
 					break;
@@ -184,16 +196,16 @@ void *tcp_client_handler(void *arg){
 
 	World_detachVehicle(&world, v);
 	update_info(&world, args->id, 0);
+	Vehicle_destroy(v);
 	
 	if(run_server) {
 		Server_detachSocket(&socket_list , socket);
 		int ret = close(socket);
 		ERROR_HELPER(ret, "Cannot close socket");
     }
-    free(args);
     
-    if(DEBUG) fprintf(stdout,"closing tcp thread...\n");
-	fflush(stdout);
+    free(args);
+    //if(DEBUG) fprintf(stdout,"closing tcp thread...\n");
 	
     pthread_exit(NULL);
 
@@ -206,39 +218,33 @@ void *udp_handler(void *arg) {
 	
 	int res;
 	char buffer[BUFLEN];
-
+	
 	while(run_server) {
-
 		res = udp_receive(udp_socket, &udp_client_addr, buffer);
 		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
 		
+		//if(!run_server) break;
 		world_update(vehicle_packet, &world);
-
 		WorldUpdatePacket* world_packet = world_update_init(&world);		
+		
 		udp_send(udp_socket, &udp_client_addr, &world_packet->header);
+		
 	}
-	
-	if(DEBUG) fprintf(stdout,"closing upd thread...\n");
-	fflush(stdout);
-	
-	return NULL;
+	//printf("closing upd thread...\n");
+	pthread_exit(NULL);
 }
 
 void signal_handler(int sig){
 	run_server = 0;
-	if(DEBUG) fprintf(stdout,"Closing...\n");
-	fflush(stdout);
+	sleep(1);
+	
+	if(DEBUG){
+		fprintf(stdout,"\nClosing server ...\n");
+		fflush(stdout);
+	}
 	
 	Server_socketClose(&socket_list);
 	Server_listFree(&socket_list);
 	
-	int ret = close(socket_desc);
-	ERROR_HELPER(ret, "Cannot close socket");
-	
-	/* 
-	 * Non so perchè, se non c'è nessun client connesso 
-	 * chiude tutti i socket ma il server non termina e neanche udp thread
-	 * */
-	
-	//exit(0);
+	closeSocket(socket_desc);
 }

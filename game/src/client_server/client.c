@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
 
 	tcp_send(socket_desc , &id_packet->header);	     // Requesting id
 	ret = tcp_receive(socket_desc , buf);          // Receiving id
+	ERROR_HELPER(ret, "Cannot receive from tcp socket");
 	
 	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, ret); // Id received!
 	my_id = received_packet->id;
@@ -60,6 +61,7 @@ int main(int argc, char **argv) {
 		
 		tcp_send(socket_desc , &vehicleTexture_packet->header);	
 		ret = tcp_receive(socket_desc , buf);
+		ERROR_HELPER(ret, "Cannot receive from tcp socket");
 		
 		ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 		
@@ -80,6 +82,7 @@ int main(int argc, char **argv) {
     tcp_send(socket_desc , &elevationImage_packet->header);
        
     ret = tcp_receive(socket_desc , buf);
+    ERROR_HELPER(ret, "Cannot receive from tcp socket");
     
     ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
@@ -99,6 +102,7 @@ int main(int argc, char **argv) {
     tcp_send(socket_desc , &surfaceTexture_packet->header);
 	
     ret = tcp_receive(socket_desc , buf); 
+    ERROR_HELPER(ret, "Cannot receive from tcp socket");
 
     ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	

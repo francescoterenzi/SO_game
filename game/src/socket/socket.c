@@ -134,7 +134,9 @@ int tcp_receive(int socket_desc , char* msg) {
 	while(received_bytes < to_receive){
 		ret = recv(socket_desc , msg + received_bytes , to_receive - received_bytes , 0);
 		if(ret < 0 && errno == EINTR) continue;
-	    ERROR_HELPER(ret, "Cannot receive from tcp socket");
+		if(ret < 0) return ret;
+		
+	    //ERROR_HELPER(ret, "Cannot receive from tcp socket");
 	    received_bytes += ret;
 	    
 	    if(ret==0) break;

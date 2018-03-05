@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <errno.h>
 
 #include "client_kit.h"
 
@@ -70,6 +71,7 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, W
 				sprintf(msg, "./image_%d", v_id);
 
 				int ret = tcp_receive(socket_desc , buffer);
+				ERROR_HELPER(ret, "Cannot receive from tcp socket");
     			vehicle_packet = (ImagePacket*) Packet_deserialize(buffer, ret);
 
 

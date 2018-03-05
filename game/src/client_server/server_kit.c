@@ -11,13 +11,22 @@
 
 void welcome_server(void) {
 	char *os_msg = "\nOPERATING SYSTEM PROJECT 2018 - SERVER SIDE ***\n\n";
-	if(DEBUG) {
-		fprintf(stdout ,"%s", os_msg);
-		fflush(stdout);
-		fprintf(stdout, "OS SERVER ip:[%s] port:[%d] ready to accept incoming connections! ***\n\n", 
-					SERVER_ADDRESS , TCP_PORT);
-		fflush(stdout);
-	}
+	fprintf(stdout ,"%s", os_msg);
+	fprintf(stdout, "OS SERVER ip:[%s] port:[%d] ready to accept incoming connections! ***\n\n", 
+				SERVER_ADDRESS , TCP_PORT);
+	fflush(stdout);
+}
+
+void goodbye_server(void) {
+	fprintf(stdout ,"Server closed. Thanks for joining the game.\n");
+	fprintf(stdout ,"# Authors: \n");
+	fprintf(stdout ,"- [Giorgio Grisetti](https://gitlab.com/grisetti) \n");
+	fprintf(stdout ,"- [Irvin Aloise](https://istinj.github.io/) \n");
+	fprintf(stdout ,"\n# Contributors: \n");
+	fprintf(stdout ,"- [Valerio Nicolanti](https://github.com/valenico) \n");
+	fprintf(stdout ,"- [Francesco Terenzi](https://github.com/fratere)\n");
+	fprintf(stdout ,"\nGoodbye :D\n");
+	fflush(stdout);
 }
 
 void world_update(VehicleUpdatePacket *vehicle_packet, World *world) {
@@ -71,8 +80,9 @@ void Server_listFree(ListHead* l){
 	}
 }
 
+
 void Server_socketClose(ListHead* l){
-	if(l->first == NULL) return;
+	if(l == NULL || l->first == NULL) return;
 	ListItem* item = l->first;
 	int i;
 	for(i = 0; i < l->size; i++) {
@@ -82,9 +92,35 @@ void Server_socketClose(ListHead* l){
 		
 		//if(DEBUG) fprintf(stdout,"closing socket...%d\n", client_desc);
 		//fflush(stdout);
-		int ret = close(client_desc);
-        ERROR_HELPER(ret, "Cannot close socket");
+		closeSocket(client_desc);
 		item = item->next;
 	}
+}
+
+int getSO_ERROR(int fd) {
+   int err = 1;
+   socklen_t len = sizeof err;
+   if (-1 == getsockopt(fd, SOL_SOCKET, SO_ERROR, (char *)&err, &len))
+      ERROR_HELPER(-1,"Error getSO_ERROR");
+   if (err)
+      errno = err;              // set errno to the socket SO_ERROR
+   return err;
+}
+
+void closeSocket(int fd) {
+	char buf[BUFLEN];
+	int ret;
+		
+	if (fd >= 0) {
+	   getSO_ERROR(fd); // first clear any errors, which can cause close to fail
+	   if (shutdown(fd, SHUT_RDWR) < 0){ // secondly, terminate the 'reliable' delivery
+		 if (errno != ENOTCONN && errno != EINVAL){ // SGI causes EINVAL
+			ERROR_HELPER(-1,"shutdown");
+		 }
+	   }
+			
+	  if (close(fd) < 0) // finally call close()
+         ERROR_HELPER( -1,"close");
+   }
 }
 
