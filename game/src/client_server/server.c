@@ -25,8 +25,12 @@ Image* surface_elevation;
 Image* vehicle_texture;
 
 int run_server;
-int socket_desc;
+int socket_desc; //tcp socket_desc
+int udp_socket;  //udp socket_desc
+
+
 ListHead socket_list;
+pthread_t udp_thread;
 
 int main(int argc, char **argv) {
 	
@@ -38,6 +42,10 @@ int main(int argc, char **argv) {
 	char* elevation_filename=argv[1];
 	char* texture_filename=argv[2];
 	char* vehicle_texture_filename=argv[3];
+	
+	struct sockaddr_in si_me;
+	udp_socket = udp_server_setup(&si_me);  //initialize udp connection
+	socket_desc = tcp_server_setup();       //initialize tcp connection
 	
 	// load the images
 	surface_elevation = Image_load(elevation_filename);
@@ -58,16 +66,16 @@ int main(int argc, char **argv) {
 	
 	int id = 1;
 	int ret, client_desc;
-	pthread_t udp_thread;
 	
 	//Creating udp thread
-	ret = pthread_create(&udp_thread, NULL, udp_handler, NULL);
+	thread_args* udp_args = (thread_args*)malloc(sizeof(thread_args));
+	udp_args->socket_desc = udp_socket;
+	udp_args->id = -1;
+	
+	ret = pthread_create(&udp_thread, NULL, udp_handler, (void*)udp_args);
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the udp_thread!");
-	
-	
-	socket_desc = tcp_server_setup();
-	int sockaddr_len = sizeof(struct sockaddr_in); // we will reuse it for accept()
 
+	int sockaddr_len = sizeof(struct sockaddr_in); // we will reuse it for accept()
 
 	// we allocate client_addr dynamically and initialize it to zero
 	struct sockaddr_in *client_addr = calloc(1, sizeof(struct sockaddr_in));
@@ -113,11 +121,9 @@ int main(int argc, char **argv) {
 	Image_free(surface_elevation);
 	Image_free(surface_texture);
 	Image_free(vehicle_texture);
-	
 	free(client_addr);
 	
-	goodbye_server();
-	
+	goodbye_server();	
 	exit(EXIT_SUCCESS); 
 }
 
@@ -213,8 +219,8 @@ void *tcp_client_handler(void *arg){
 
 void *udp_handler(void *arg) {
 	
-	struct sockaddr_in si_me, udp_client_addr;
-	int udp_socket = udp_server_setup(&si_me);
+	struct sockaddr_in udp_client_addr;
+	int udp_socket = ((thread_args*)arg)->socket_desc;
 	
 	int res;
 	char buffer[BUFLEN];
@@ -230,11 +236,11 @@ void *udp_handler(void *arg) {
 		udp_send(udp_socket, &udp_client_addr, &world_packet->header);
 		
 	}
-	//printf("closing upd thread...\n");
 	pthread_exit(NULL);
 }
 
 void signal_handler(int sig){
+	signal(SIGINT, SIG_DFL); //Restore default signal handling. Double CTRL+C for hard shutdown
 	run_server = 0;
 	sleep(1);
 	
@@ -243,8 +249,12 @@ void signal_handler(int sig){
 		fflush(stdout);
 	}
 	
+	int ret = pthread_cancel(udp_thread);
+	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error on killing udp thread");
+	
 	Server_socketClose(&socket_list);
 	Server_listFree(&socket_list);
 	
+	closeSocket(udp_socket);
 	closeSocket(socket_desc);
 }

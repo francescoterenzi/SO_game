@@ -18,7 +18,7 @@ void welcome_server(void) {
 }
 
 void goodbye_server(void) {
-	fprintf(stdout ,"Server closed. Thanks for joining the game.\n");
+	fprintf(stdout ,"\n\nServer closed. Multiplayer no longer avaible.\n");
 	fprintf(stdout ,"# Authors: \n");
 	fprintf(stdout ,"- [Giorgio Grisetti](https://gitlab.com/grisetti) \n");
 	fprintf(stdout ,"- [Irvin Aloise](https://istinj.github.io/) \n");
