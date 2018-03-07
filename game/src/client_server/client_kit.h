@@ -22,4 +22,5 @@ typedef struct {
 void welcome_client(int id);
 Image* get_vehicle_texture(void);
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, World *world);
-void *updater_thread(void *arg);
+void *updater_thread(void *args);
+void connection_checker_thread(void* args);

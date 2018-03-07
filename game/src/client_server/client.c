@@ -13,6 +13,9 @@
 
 #include "client_kit.h"
 
+int udp_socket;
+pthread_t runner_thread;
+
 int main(int argc, char **argv) {
 
 	if (argc<2) {
@@ -123,9 +126,10 @@ int main(int argc, char **argv) {
 	
 	
 	/*** UDP PART NOTIFICATION ***/
-	pthread_t runner_thread;
 	pthread_attr_t runner_attrs;
-	UpdaterArgs runner_args={
+	pthread_t connection_checker;
+	
+	UpdaterArgs runner_args = {
 		.run=1,
 		.id = my_id,
 		.tcp_desc = socket_desc,
@@ -135,13 +139,21 @@ int main(int argc, char **argv) {
 	};
 	  
 	pthread_attr_init(&runner_attrs);
-	pthread_create(&runner_thread, &runner_attrs, updater_thread, &runner_args);
+	ret = pthread_create(&runner_thread, &runner_attrs, updater_thread, &runner_args);
+	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create runner thread");
+		
+	ret = pthread_create(&connection_checker, NULL, (void*)connection_checker_thread, &runner_args);
+	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create connection_checker thread");
 	
 	WorldViewer_runGlobal(&world, vehicle, &argc, argv);
 	runner_args.run=0;
 	
-	void* retval;
-	pthread_join(runner_thread, &retval);
+	
+	ret = pthread_join(runner_thread, NULL);
+	if(ret!=0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret, "Error: failed join udp thread");
+	
+	ret = pthread_cancel(connection_checker);
+	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: failed cancel connection_checker thread");
 	
 
 	World_destroy(&world);
@@ -160,4 +172,76 @@ int main(int argc, char **argv) {
 	free(buf);
 	
 	return 0;             
+}
+
+
+void *updater_thread(void *args) {
+	
+	UpdaterArgs* arg = (UpdaterArgs*) args;
+
+	// variables
+	int id = arg->id;
+	World *world = arg->world;
+	Vehicle *vehicle = arg->vehicle;
+
+	// creo socket udp
+	struct sockaddr_in si_other;
+	udp_socket = udp_client_setup(&si_other);
+
+    int ret;
+
+	char buffer[BUFLEN];
+    
+	while(arg->run) {
+
+		float r_f_update = vehicle->rotational_force_update;
+		float t_f_update = vehicle->translational_force_update;
+
+		// create vehicle_packet
+		VehicleUpdatePacket* vehicle_packet = vehicle_update_init(world, id, r_f_update, t_f_update);
+		udp_send(udp_socket, &si_other, &vehicle_packet->header);
+		
+        clear(buffer); 	// possiamo sempre usare lo stesso per ricevere
+		
+		ret = udp_receive(udp_socket, &si_other, buffer);
+		WorldUpdatePacket* wu_packet = (WorldUpdatePacket*)Packet_deserialize(buffer, ret);		
+		client_update(wu_packet, arg->tcp_desc, world);
+ 		
+		usleep(30000);
+	}
+	
+	if(DEBUG) fprintf(stdout,"Ending udp thread\n");
+	return 0;
+}
+
+void connection_checker_thread(void* args){
+	UpdaterArgs* arg = (UpdaterArgs*) args;
+	int tcp_desc = arg->tcp_desc;
+	int ret;
+	char c;
+	
+	while(1){
+		ret = recv(tcp_desc , &c , 1 , MSG_PEEK); // this only check if recv returns 0, without removing data from queue
+		if(ret < 0 && errno == EINTR) continue;
+		ERROR_HELPER(ret , "Error on receive in connection checker thread"); 
+		
+		if(ret == 0) break;
+		usleep(30000);
+	}	
+	arg->run = 0;	
+	if(DEBUG) fprintf(stdout,"Connection ended\n");
+	
+	ret = pthread_cancel(runner_thread);
+	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: failed cancel runner_thread ");
+	
+	int i = 0;
+	World* world = arg->world;
+	
+	while(i < world->vehicles.size - 1) {
+		Vehicle* v;
+		if(i != arg->id && (v = World_getVehicle(world , i))) World_detachVehicle(world , v);
+		i++;
+	}
+	if(DEBUG) fprintf(stdout,"Connection_checker ended\n");
+	return;
 }

@@ -22,7 +22,7 @@ Image* get_vehicle_texture() {
 	char image_path[256];
 	fprintf(stdout, "\nOPERATING SYSTEM PROJECT 2018 - CLIENT SIDE ***\n\n");
 	fflush(stdout);
-	fprintf(stdout, "You will be soon connected to the game server.\n");
+	fprintf(stdout, "\nYou will be soon connected to the game server.\n");
 	fprintf(stdout, "First, you can choose to use your own image. Only .ppm images are supported.\n");
 	fprintf(stdout, "Insert path ('no' for default vehicle image) :\n");
 
@@ -117,41 +117,5 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, W
 	}
 }
 
-void *updater_thread(void *args) {
-	
-	UpdaterArgs* arg = (UpdaterArgs*) args;
 
-	// variables
-	int id = arg->id;
-	World *world = arg->world;
-	Vehicle *vehicle = arg->vehicle;
-
-	// creo socket udp
-	struct sockaddr_in si_other;
-	int udp_socket = udp_client_setup(&si_other);
-
-    int ret;
-
-	char buffer[BUFLEN];
-    
-	while(arg->run) {
-
-		float r_f_update = vehicle->rotational_force_update;
-		float t_f_update = vehicle->translational_force_update;
-
-		// create vehicle_packet
-		VehicleUpdatePacket* vehicle_packet = vehicle_update_init(world, id, r_f_update, t_f_update);
-		udp_send(udp_socket, &si_other, &vehicle_packet->header);
-		
-        clear(buffer); 	// possiamo sempre usare lo stesso per ricevere
-		
-		ret = udp_receive(udp_socket, &si_other, buffer);
-		WorldUpdatePacket* wu_packet = (WorldUpdatePacket*)Packet_deserialize(buffer, ret);		
-		client_update(wu_packet, arg->tcp_desc, world);
- 		
-		usleep(30000);
-	}
-
-	return 0;
-}
 
