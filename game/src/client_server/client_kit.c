@@ -10,9 +10,16 @@
 #include "client_kit.h"
 
 void welcome_client(int id) {
-	fprintf(stdout, "\n\nConnect to OS SEREVR ip:[%s] port:[%d] with id:[%d] ***\n", 
+	fprintf(stdout, "\n\nConnect to SEREVR ip:[%s] port:[%d] with id:[%d] ***\n", 
 				SERVER_ADDRESS , TCP_PORT, id);
 	fprintf(stdout,"\nJoin the game!! ***\n\n");
+	fflush(stdout);
+}
+
+void Client_siglePlayerNotification(void){
+	fprintf(stdout, "\n\nConnection with SEREVR ip:[%s] port:[%d] ENDED\n", 
+				SERVER_ADDRESS , TCP_PORT);
+	fprintf(stdout,"\nMultiplayer no longer avaible!! ***\n\n");
 	fflush(stdout);
 }
 

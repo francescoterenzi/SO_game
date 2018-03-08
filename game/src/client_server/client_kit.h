@@ -20,6 +20,7 @@ typedef struct {
 } UpdaterArgs;
 
 void welcome_client(int id);
+void Client_siglePlayerNotification(void);
 Image* get_vehicle_texture(void);
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, World *world);
 void *updater_thread(void *args);

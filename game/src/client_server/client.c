@@ -55,6 +55,7 @@ int main(int argc, char **argv) {
 	welcome_client(my_id);
 
 
+    // REQUEST AND GET VEHICLE TEXTURE
 	ImagePacket* vehicleTexture_packet;
 	if(vehicle_texture) {
 		vehicleTexture_packet = image_packet_init(PostTexture, vehicle_texture, my_id);    // client chose to use his own image
@@ -139,6 +140,7 @@ int main(int argc, char **argv) {
 	};
 	  
 	pthread_attr_init(&runner_attrs);
+	
 	ret = pthread_create(&runner_thread, &runner_attrs, updater_thread, &runner_args);
 	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create runner thread");
 		
@@ -148,7 +150,6 @@ int main(int argc, char **argv) {
 	WorldViewer_runGlobal(&world, vehicle, &argc, argv);
 	runner_args.run=0;
 	
-	
 	ret = pthread_join(runner_thread, NULL);
 	if(ret!=0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret, "Error: failed join udp thread");
 	
@@ -157,6 +158,12 @@ int main(int argc, char **argv) {
 	
 
 	World_destroy(&world);
+	
+	ret = close(udp_socket);
+	ERROR_HELPER(ret , "Error: cannot close udp socket");
+	
+	ret = close(socket_desc);
+	ERROR_HELPER(ret , "Error: cannot close tcp socket");
 
 	//free allocated memory
 	Packet_free(&id_packet->header);
@@ -170,6 +177,14 @@ int main(int argc, char **argv) {
 	
 	Packet_free(&vehicleTexture_packet->header);
 	free(buf);
+	
+	Image_free(map_elevation);
+	Image_free(map_texture);
+	Image_free(vehicle_texture);
+	
+	Vehicle_destroy(vehicle);
+	
+	if(DEBUG) fprintf(stdout,"Freed memory, client ending\n");
 	
 	return 0;             
 }
@@ -221,7 +236,7 @@ void connection_checker_thread(void* args){
 	char c;
 	
 	while(1){
-		ret = recv(tcp_desc , &c , 1 , MSG_PEEK); // this only check if recv returns 0, without removing data from queue
+		ret = recv(tcp_desc , &c , 1 , MSG_PEEK); // this only checks if recv returns 0, without removing data from queue
 		if(ret < 0 && errno == EINTR) continue;
 		ERROR_HELPER(ret , "Error on receive in connection checker thread"); 
 		
@@ -229,7 +244,7 @@ void connection_checker_thread(void* args){
 		usleep(30000);
 	}	
 	arg->run = 0;	
-	if(DEBUG) fprintf(stdout,"Connection ended\n");
+	//if(DEBUG) fprintf(stdout,"Connection ended\n");
 	
 	ret = pthread_cancel(runner_thread);
 	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: failed cancel runner_thread ");
@@ -237,11 +252,11 @@ void connection_checker_thread(void* args){
 	int i = 0;
 	World* world = arg->world;
 	
-	while(i < world->vehicles.size - 1) {
+	while(world->vehicles.size > 2) {
 		Vehicle* v;
-		if(i != arg->id && (v = World_getVehicle(world , i))) World_detachVehicle(world , v);
+		if(i != arg->id && (v = World_getVehicle(world , i))!=0 ) World_detachVehicle(world , v);
 		i++;
 	}
-	if(DEBUG) fprintf(stdout,"Connection_checker ended\n");
+	Client_siglePlayerNotification();
 	return;
 }
