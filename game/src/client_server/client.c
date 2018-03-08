@@ -268,6 +268,8 @@ void *connection_checker_thread(void* args){
 	return NULL;
 }
 
+
+// questa è la run global :-)
 void *run_global_thread(void *args) {
 	
 	UpdaterArgs* arg = (UpdaterArgs*) args;
