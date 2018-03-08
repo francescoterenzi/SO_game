@@ -248,14 +248,13 @@ void connection_checker_thread(void* args){
 	
 	ret = pthread_cancel(runner_thread);
 	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: failed cancel runner_thread ");
+
+	ListItem* item = arg->world->vehicles.first;
 	
-	int i = 0;
-	World* world = arg->world;
-	
-	while(world->vehicles.size > 2) {
-		Vehicle* v;
-		if(i != arg->id && (v = World_getVehicle(world , i))!=0 ) World_detachVehicle(world , v);
-		i++;
+	while(item) {
+		Vehicle* v = (Vehicle*)item;
+		if(v->id != arg->id) World_detachVehicle(arg->world , v);
+		item = item->next;
 	}
 	Client_siglePlayerNotification();
 	return;
