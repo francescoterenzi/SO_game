@@ -128,8 +128,6 @@ int main(int argc, char **argv) {
 	
 	/*** UDP PART NOTIFICATION ***/
 	pthread_t connection_checker;
-	pthread_t run_global;
-
 	
 	UpdaterArgs runner_args = {
 		.run=1,
@@ -137,9 +135,7 @@ int main(int argc, char **argv) {
 		.tcp_desc = socket_desc,
 		.texture = vehicle_texture,
 		.vehicle = vehicle,
-		.world = &world,
-		.argc = argc,
-		.argv = argv
+		.world = &world
 	};
 	
 	
@@ -149,13 +145,9 @@ int main(int argc, char **argv) {
 	ret = pthread_create(&connection_checker, NULL, connection_checker_thread, &runner_args);
 	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create connection_checker thread");
 	
-	ret = pthread_create(&run_global, NULL, run_global_thread, &runner_args);
-	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create connection_checker thread");
+	WorldViewer_runGlobal(&world, vehicle, &argc, argv);
+	runner_args.run=0;
 	
-	
-	ret = pthread_join(run_global, NULL);
-	if(ret != 0) PTHREAD_ERROR_HELPER(ret, "Error: failed join runglobal thread");
-		
 	ret = pthread_join(runner_thread, NULL);
 	if(ret!=0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret, "Error: failed join udp thread");
 	
@@ -265,24 +257,5 @@ void *connection_checker_thread(void* args){
 	}
 	
 	Client_siglePlayerNotification();
-	return NULL;
-}
-
-
-// questa è la run global :-)
-void *run_global_thread(void *args) {
-	
-	UpdaterArgs* arg = (UpdaterArgs*) args;
-
-	// variables
-	World *world = arg->world;
-	Vehicle *vehicle = arg->vehicle;
-	int argc = arg->argc;
-	char **argv = arg->argv;
-
-	WorldViewer_runGlobal(world, vehicle, &argc, argv);
-	arg->run=0;
-
-
 	return NULL;
 }

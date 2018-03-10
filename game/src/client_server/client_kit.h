@@ -17,8 +17,6 @@ typedef struct {
   Image *texture;
   Vehicle *vehicle;
   World *world;
-  int argc;
-  char **argv;
 } UpdaterArgs;
 
 void welcome_client(int id);
@@ -29,4 +27,3 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, W
 // thread functions
 void *updater_thread(void *args);
 void *connection_checker_thread(void* args);
-void *run_global_thread(void *args);
