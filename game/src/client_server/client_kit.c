@@ -27,32 +27,38 @@ Image* get_vehicle_texture() {
 
 	Image* my_texture;
 	char image_path[256];
+	int done = 0;
+	
 	fprintf(stdout, "\nOPERATING SYSTEM PROJECT 2018 - CLIENT SIDE ***\n\n");
 	fflush(stdout);
-	fprintf(stdout, "\nYou will be soon connected to the game server.\n");
+	fprintf(stdout, "\nWelcome!\nThanks for joining, you will be soon connected to the game server.\n");
 	fprintf(stdout, "First, you can choose to use your own image. Only .ppm images are supported.\n");
-	fprintf(stdout, "Insert path ('no' for default vehicle image) :\n");
-
-	if(scanf("%s",image_path) < 0){
-		fprintf(stderr, "Error occured!\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if(strcmp(image_path, "no") == 0) return NULL;
-	else {
-		char *dot = strrchr(image_path, '.');
-		if (dot == NULL || strcmp(dot, ".ppm")!=0){
-			fprintf(stderr,"Sorry! Image not found or not supported... \n");
+	
+	while(!done){
+		fprintf(stdout, "Insert path ('no' for default vehicle image) ('q' to exit) :\n");
+		if(scanf("%s",image_path) < 0){
+			fprintf(stderr, "Error occured!\n");
 			exit(EXIT_FAILURE);
 		}
-		my_texture = Image_load(image_path);
-		if (my_texture) {
-			printf("Done! \n");
-			return my_texture;
-		} else {
-			fprintf(stderr,"Sorry! Chose image cannot be loaded... \n");
-			exit(EXIT_FAILURE);
+		if(strcmp(image_path, "q") == 0) exit(EXIT_SUCCESS);
+		if(strcmp(image_path, "no") == 0) return NULL;
+		else {
+			char *dot = strrchr(image_path, '.');
+			if (dot == NULL || strcmp(dot, ".ppm")!=0){
+				fprintf(stderr,"Sorry! Image not found or not supported... \n");
+			}
+			else{
+				my_texture = Image_load(image_path);
+				if (my_texture) {
+					printf("Done! \n");
+					return my_texture;
+				} else {
+					fprintf(stderr,"Sorry! Chose image cannot be loaded... \n");
+					exit(EXIT_FAILURE);
+				}
+			}
 		}
+		usleep(3000);
 	}
 	return NULL; // will never be reached
 }
