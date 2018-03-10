@@ -27,14 +27,13 @@ Image* get_vehicle_texture() {
 
 	Image* my_texture;
 	char image_path[256];
-	int done = 0;
 	
 	fprintf(stdout, "\nOPERATING SYSTEM PROJECT 2018 - CLIENT SIDE ***\n\n");
 	fflush(stdout);
 	fprintf(stdout, "\nWelcome!\nThanks for joining, you will be soon connected to the game server.\n");
 	fprintf(stdout, "First, you can choose to use your own image. Only .ppm images are supported.\n");
 	
-	while(!done){
+	while(1){
 		fprintf(stdout, "Insert path ('no' for default vehicle image) ('q' to exit) :\n");
 		if(scanf("%s",image_path) < 0){
 			fprintf(stderr, "Error occured!\n");
