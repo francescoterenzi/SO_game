@@ -163,7 +163,6 @@ int main(int argc, char **argv) {
 	ret = close(socket_desc);
 	ERROR_HELPER(ret , "Error: cannot close tcp socket");
 
-	//free allocated memory
 	Packet_free(&id_packet->header);
 	Packet_free(&received_packet->header);
 	
@@ -176,15 +175,9 @@ int main(int argc, char **argv) {
 	Packet_free(&vehicleTexture_packet->header);
 	free(buf);
 	
-	Image_free(map_elevation);
-	Image_free(map_texture);
-	Image_free(vehicle_texture);
-	
 	Vehicle_destroy(vehicle);
 	
-	if(DEBUG) fprintf(stdout,"Freed memory, client ending\n");
-	
-	return 0;             
+	return EXIT_SUCCESS;             
 }
 
 void *updater_thread(void *args) {
@@ -221,8 +214,6 @@ void *updater_thread(void *args) {
  		
 		usleep(30000);
 	}
-	
-	if(DEBUG) fprintf(stdout,"Ending udp thread\n");
 	return 0;
 }
 
@@ -243,20 +234,28 @@ void *connection_checker_thread(void* args){
 	}
 
 	arg->run = 0;	
-	//if(DEBUG) fprintf(stdout,"Connection ended\n");
 	
 	ret = pthread_cancel(runner_thread);
 	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: failed cancel runner_thread ");
-
+	
+	Client_siglePlayerNotification();
+	
 	ListItem* item = arg->world->vehicles.first;
 	
 	while(item) {
 		Vehicle* v = (Vehicle*)item;
 		item = item->next;
-		if(DEBUG) fprintf(stdout,"Removing veicle with id = [%d]\n", v->id);
-		if(v->id != arg->id) World_detachVehicle(arg->world , v);
+		if(v->id != arg->id){
+			World_detachVehicle(arg->world , v);
+			update_info(arg->world, v->id , 0);
+		}			
 	}
 	
-	Client_siglePlayerNotification();
-	return NULL;
+	ret = close(udp_socket);
+	ERROR_HELPER(ret , "Error: cannot close udp socket");
+	
+	ret = close(tcp_desc);
+	ERROR_HELPER(ret , "Error: cannot close tcp socket");
+	
+	pthread_exit(NULL);
 }
