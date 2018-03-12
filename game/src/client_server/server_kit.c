@@ -97,30 +97,19 @@ void Server_socketClose(ListHead* l){
 	}
 }
 
-int getSO_ERROR(int fd) {
-   int err = 1;
-   socklen_t len = sizeof err;
-   if (-1 == getsockopt(fd, SOL_SOCKET, SO_ERROR, (char *)&err, &len))
-      ERROR_HELPER(-1,"Error getSO_ERROR");
-   if (err)
-      errno = err;              // set errno to the socket SO_ERROR
-   return err;
-}
 
 void closeSocket(int fd) {
-	char buf[BUFLEN];
 	int ret;
 		
 	if (fd >= 0) {
-	   getSO_ERROR(fd); // first clear any errors, which can cause close to fail
-	   if (shutdown(fd, SHUT_RDWR) < 0){ // secondly, terminate the 'reliable' delivery
-		 if (errno != ENOTCONN && errno != EINVAL){ // SGI causes EINVAL
-			ERROR_HELPER(-1,"shutdown");
+	   if (shutdown(fd, SHUT_RDWR) < 0){ // terminate the 'reliable' delivery, SHUT_RDWR makes impossible to receive and send on socket
+		 if (errno != ENOTCONN && errno != EINVAL){
+			ERROR_HELPER(-1,"Error: shutdown faild");
 		 }
 	   }
 			
 	  if (close(fd) < 0) // finally call close()
-         ERROR_HELPER( -1,"close");
+         ERROR_HELPER( -1,"Error: close socket failed");
    }
 }
 

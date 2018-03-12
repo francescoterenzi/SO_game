@@ -14,11 +14,6 @@
 
 #include "server_kit.h"
 
-void *udp_handler(void *arg);
-void *tcp_client_handler(void *arg);
-void signal_handler(int sig);
-
-
 World world;
 Image* surface_texture;
 Image* surface_elevation;
@@ -122,6 +117,7 @@ int main(int argc, char **argv) {
 	Image_free(surface_texture);
 	Image_free(vehicle_texture);
 	free(client_addr);
+	free(udp_args);
 	
 	goodbye_server();	
 	exit(EXIT_SUCCESS); 
@@ -143,15 +139,14 @@ void *tcp_client_handler(void *arg){
 		int ret = tcp_receive(socket , buf);
 		
 		if(ret == -1){
-			if(run_server == 0){
-				//fprintf(stdout,"Client [%d] : Connection closed\n" , client_id);
+			if(run_server == 0){ // server is closing
 				run = 0;
 				break;
 			}
 			ERROR_HELPER(ret, "Cannot receive from tcp socket");
 		}
 		
-		else if(!ret) run = 0;
+		else if(!ret) run = 0; // client disconected
 		
 		else {
 
@@ -203,16 +198,15 @@ void *tcp_client_handler(void *arg){
 	World_detachVehicle(&world, v);
 	update_info(&world, args->id, 0);
 	Vehicle_destroy(v);
+	free(args);
 	
-	if(run_server) {
+	if(run_server) { // if run_server == 0 server is closing, no detachSocket and close needed
 		Server_detachSocket(&socket_list , socket);
 		int ret = close(socket);
 		ERROR_HELPER(ret, "Cannot close socket");
     }
-    
-    free(args);
     //if(DEBUG) fprintf(stdout,"closing tcp thread...\n");
-	
+    	
     pthread_exit(NULL);
 
 }
@@ -229,7 +223,6 @@ void *udp_handler(void *arg) {
 		res = udp_receive(udp_socket, &udp_client_addr, buffer);
 		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
 		
-		//if(!run_server) break;
 		world_update(vehicle_packet, &world);
 		WorldUpdatePacket* world_packet = world_update_init(&world);		
 		
@@ -240,7 +233,7 @@ void *udp_handler(void *arg) {
 }
 
 void signal_handler(int sig){
-	signal(SIGINT, SIG_DFL); //Restore default signal handling. Double CTRL+C for hard shutdown
+	signal(SIGINT, SIG_DFL); // Restore default signal handling. Double CTRL+C for hard shutdown
 	run_server = 0;
 	sleep(1);
 	
@@ -250,7 +243,7 @@ void signal_handler(int sig){
 	}
 	
 	int ret = pthread_cancel(udp_thread);
-	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error on killing udp thread");
+	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: pthread_cancel udp thread failed"); // if errno == ESRCH udp_thread has already terminated
 	
 	Server_socketClose(&socket_list);
 	Server_listFree(&socket_list);
