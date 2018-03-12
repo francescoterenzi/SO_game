@@ -23,15 +23,15 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
-	// for the world
 	World world;
 	Vehicle* vehicle;
 
 	int ret;
 	
+	// these come from server
 	Image* map_elevation;
 	Image* map_texture;
-	Image* vehicle_texture; //vehicle texture
+	Image* vehicle_texture;
 	int my_id = -1;
 	
 	vehicle_texture = get_vehicle_texture(); 
@@ -125,6 +125,7 @@ int main(int argc, char **argv) {
 	Vehicle_init(vehicle, &world, my_id, vehicle_texture);
 	World_addVehicle(&world, vehicle);
 	
+	free(buf);	
 	
 	/*** UDP PART NOTIFICATION ***/
 	pthread_t connection_checker;
@@ -149,19 +150,20 @@ int main(int argc, char **argv) {
 	runner_args.run=0;
 	
 	ret = pthread_join(runner_thread, NULL);
-	if(ret!=0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret, "Error: failed join udp thread");
+	if(ret!=0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret, "Error: failed join udp thread"); //if errno = ESRCH thread has already 
+	                                                                                         //been ended from connection_checker
 	
 	ret = pthread_cancel(connection_checker);
-	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: failed cancel connection_checker thread");
+	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: failed cancel connection_checker thread"); //if errno = ESRCH thread has already ended
 	
 
 	World_destroy(&world);
 	
 	ret = close(udp_socket);
-	ERROR_HELPER(ret , "Error: cannot close udp socket");
-	
+	if(ret < 0 && errno != EBADF) ERROR_HELPER(ret , "Error: cannot close udp socket"); // if errno = EBADF socket has already 
+	                                                                                    // been closed from connection_checker	
 	ret = close(socket_desc);
-	ERROR_HELPER(ret , "Error: cannot close tcp socket");
+	if(ret < 0 && errno != EBADF) ERROR_HELPER(ret , "Error: cannot close udp socket"); 
 
 	Packet_free(&id_packet->header);
 	Packet_free(&received_packet->header);
@@ -173,7 +175,6 @@ int main(int argc, char **argv) {
 	Packet_free(&elevation_packet->header);
 	
 	Packet_free(&vehicleTexture_packet->header);
-	free(buf);
 	
 	Vehicle_destroy(vehicle);
 	
@@ -189,7 +190,7 @@ void *updater_thread(void *args) {
 	World *world = arg->world;
 	Vehicle *vehicle = arg->vehicle;
 
-	// creo socket udp
+	// creating socket udp
 	struct sockaddr_in si_other;
 	udp_socket = udp_client_setup(&si_other);
 
@@ -206,7 +207,7 @@ void *updater_thread(void *args) {
 		VehicleUpdatePacket* vehicle_packet = vehicle_update_init(world, id, r_f_update, t_f_update);
 		udp_send(udp_socket, &si_other, &vehicle_packet->header);
 		
-        clear(buffer); 	// possiamo sempre usare lo stesso per ricevere
+        clear(buffer); 	// we can use the same buffer to receive
 		
 		ret = udp_receive(udp_socket, &si_other, buffer);
 		WorldUpdatePacket* wu_packet = (WorldUpdatePacket*)Packet_deserialize(buffer, ret);		
@@ -214,7 +215,7 @@ void *updater_thread(void *args) {
  		
 		usleep(30000);
 	}
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 void *connection_checker_thread(void* args){
@@ -229,14 +230,14 @@ void *connection_checker_thread(void* args){
 		if(ret < 0 && errno == EINTR) continue;
 		ERROR_HELPER(ret , "Error on receive in connection checker thread"); 
 		
-		if(ret == 0) break;
+		if(ret == 0) break; // server has quit
 		usleep(30000);
 	}
 
 	arg->run = 0;	
 	
-	ret = pthread_cancel(runner_thread);
-	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: failed cancel runner_thread ");
+	ret = pthread_cancel(runner_thread);                                                             // server has quit, udp thread is no longer necessary
+	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: failed cancel runner_thread "); // if errno = ESRCH thread has already ended
 	
 	Client_siglePlayerNotification();
 	
@@ -252,10 +253,10 @@ void *connection_checker_thread(void* args){
 	}
 	
 	ret = close(udp_socket);
-	ERROR_HELPER(ret , "Error: cannot close udp socket");
+	if(ret < 0 && errno != EBADF) ERROR_HELPER(ret , "Error: cannot close udp socket"); // if errno = EBADF socket has already been closed 
 	
 	ret = close(tcp_desc);
-	ERROR_HELPER(ret , "Error: cannot close tcp socket");
+	if(ret < 0 && errno != EBADF) ERROR_HELPER(ret , "Error: cannot close tcp socket");
 	
-	pthread_exit(NULL);
+	pthread_exit(EXIT_SUCCESS);
 }
