@@ -47,10 +47,13 @@ int main(int argc, char **argv) {
 	ret = tcp_receive(socket_desc , buf);          // Receiving id
 	ERROR_HELPER(ret, "Cannot receive from tcp socket");
 	
-	IdPacket* received_packet = (IdPacket*)Packet_deserialize(buf, ret); // Id received!
-	my_id = received_packet->id;
+	Packet_free(&id_packet->header); // free to use the same IdPacket to receive
+	
+	id_packet = (IdPacket*)Packet_deserialize(buf, ret); // Id received!
+	my_id = id_packet->id;
 	
 	///if(DEBUG) printf("Id received : %d\n", my_id);
+	Packet_free(&id_packet->header);
 	
 	welcome_client(my_id);
 
@@ -67,16 +70,16 @@ int main(int argc, char **argv) {
 		ret = tcp_receive(socket_desc , buf);
 		ERROR_HELPER(ret, "Cannot receive from tcp socket");
 		
-		ImagePacket* vehicle_packet = (ImagePacket*)Packet_deserialize(buf, ret);
+		Packet_free(&vehicleTexture_packet->header); // free to use the same ImagePacket to receive
+		vehicleTexture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 		
-		if( (vehicle_packet->header).type != PostTexture || vehicle_packet->id <= 0) {
+		if( (vehicleTexture_packet->header).type != PostTexture || vehicleTexture_packet->id <= 0) {
 			fprintf(stderr,"Error: Image corrupted");
 			exit(EXIT_FAILURE);			
 		}
 		///if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 		
-		vehicle_texture = vehicle_packet->image;
-		free(vehicle_packet);
+		vehicle_texture = vehicleTexture_packet->image;
     }
 
 
@@ -88,15 +91,16 @@ int main(int argc, char **argv) {
     ret = tcp_receive(socket_desc , buf);
     ERROR_HELPER(ret, "Cannot receive from tcp socket");
     
-    ImagePacket* elevation_packet = (ImagePacket*)Packet_deserialize(buf, ret);
+    Packet_free(&elevationImage_packet->header); // free to use the same ImagePacket to receive
+    elevationImage_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
-	if( (elevation_packet->header).type != PostElevation || elevation_packet->id != 0) {
+	if( (elevationImage_packet->header).type != PostElevation || elevationImage_packet->id != 0) {
 		fprintf(stderr,"Error: Image corrupted");
 		exit(EXIT_FAILURE);		
 	}
 	///if(DEBUG) printf("%s ELEVATION MAP RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	
-	map_elevation = elevation_packet->image;
+	map_elevation = elevationImage_packet->image;
 	
 	
 	
@@ -107,16 +111,17 @@ int main(int argc, char **argv) {
 	
     ret = tcp_receive(socket_desc , buf); 
     ERROR_HELPER(ret, "Cannot receive from tcp socket");
-
-    ImagePacket* texture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
+    
+    Packet_free(&surfaceTexture_packet->header); // free to use the same ImagePacket to receive
+    surfaceTexture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
 	
-	if( (texture_packet->header).type != PostTexture || texture_packet->id != 0) {
+	if( (surfaceTexture_packet->header).type != PostTexture || surfaceTexture_packet->id != 0) {
 		fprintf(stderr,"Error: Image corrupted");
 		exit(EXIT_FAILURE);		
 	}
 	///if(DEBUG) printf("%s SURFACE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
 	
-    map_texture = texture_packet->image;
+    map_texture = surfaceTexture_packet->image;
 	
 	// construct the world
 	World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
@@ -164,17 +169,10 @@ int main(int argc, char **argv) {
 	                                                                                    // been closed from connection_checker	
 	ret = close(socket_desc);
 	if(ret < 0 && errno != EBADF) ERROR_HELPER(ret , "Error: cannot close udp socket"); 
-
-	Packet_free(&id_packet->header);
-	Packet_free(&received_packet->header);
-	
-	Packet_free(&surfaceTexture_packet->header);
-	Packet_free(&texture_packet->header);
-	
-	Packet_free(&elevationImage_packet->header);
-	Packet_free(&elevation_packet->header);
 	
 	Packet_free(&vehicleTexture_packet->header);
+	Packet_free(&elevationImage_packet->header);
+	Packet_free(&surfaceTexture_packet->header);	
 	
 	Vehicle_destroy(vehicle);
 	
