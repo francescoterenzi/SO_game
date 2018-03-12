@@ -252,8 +252,9 @@ void *connection_checker_thread(void* args){
 	
 	while(item) {
 		Vehicle* v = (Vehicle*)item;
-		if(v->id != arg->id) World_detachVehicle(arg->world , v);
 		item = item->next;
+		if(DEBUG) fprintf(stdout,"Removing veicle with id = [%d]\n", v->id);
+		if(v->id != arg->id) World_detachVehicle(arg->world , v);
 	}
 	
 	Client_siglePlayerNotification();
