@@ -18,9 +18,9 @@ OBJS = src/vehicle/vec3.o\
        src/protocol/so_game_protocol.o\
 	   src/packet/packet.o\
 	   src/socket/socket.o\
-	   src/client_server/common.o\
-	   src/client_server/server_kit.o\
-	   src/client_server/client_kit.o
+	   src/common/common.o\
+	   src/server/server_kit.o\
+	   src/client/client_kit.o
 
 HEADERS=helpers.h\
 	src/image/image.h\
@@ -33,9 +33,9 @@ HEADERS=helpers.h\
 	src/world/world_viewer.h\
 	src/packet/packet.h\
 	src/socket/socket.h\
-	src/client_server/common.h\
-	src/client_server/server_kit.h\
-	src/client_server/client_kit.h
+	src/common/common.h\
+	src/server/server_kit.h\
+	src/client/client_kit.h
 
 %.o:	%.c $(HEADERS)
 	$(CC) $(CCOPTS) -c -o $@  $<
@@ -50,10 +50,10 @@ libso_game.a: $(OBJS)
 	$(AR) -rcs ./bin/$@ $^
 	$(RM) $(OBJS)
 	
-server: ./src/client_server/server.c ./bin/libso_game.a 
+server: ./src/server/server.c ./bin/libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o ./bin/$@ $^ $(LIBS)
 
-client: ./src/client_server/client.c ./bin/libso_game.a 
+client: ./src/client/client.c ./bin/libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o ./bin/$@ $^ $(LIBS) 
 
 clean:

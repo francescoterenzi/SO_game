@@ -8,7 +8,7 @@
 #include <errno.h>
 
 #include "socket.h"
-#include "../client_server/common.h"
+#include "../common/common.h"
 
 int tcp_server_setup(void) {
 	

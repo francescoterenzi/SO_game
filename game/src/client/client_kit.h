@@ -8,7 +8,7 @@
 #include "../protocol/so_game_protocol.h"
 #include "../packet/packet.h"
 #include "../socket/socket.h"
-#include "common.h"
+#include "../common/common.h"
 
 typedef struct {
   volatile int run;

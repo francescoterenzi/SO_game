@@ -2,7 +2,7 @@
 #include <string.h>
 
 #include "packet.h"
-#include "../client_server/common.h"
+#include "../common/common.h"
 
 ImagePacket* image_packet_init(Type type, Image *image, int id) {
 
