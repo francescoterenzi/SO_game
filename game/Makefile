@@ -56,5 +56,11 @@ server: ./src/server/server.c ./bin/libso_game.a
 client: ./src/client/client.c ./bin/libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o ./bin/$@ $^ $(LIBS) 
 
+test_server:
+	./bin/server ./images/test.pgm ./images/test.ppm ./images/arrow-right.ppm
+
+test_client:
+	./bin/client 127.0.0.1
+
 clean:
 	rm -rf *.o *~  ./bin/* 
