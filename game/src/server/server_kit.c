@@ -80,7 +80,6 @@ void Server_listFree(ListHead* l){
 	}
 }
 
-
 void Server_socketClose(ListHead* l){
 	if(l == NULL || l->first == NULL) return;
 	ListItem* item = l->first;
@@ -97,7 +96,6 @@ void Server_socketClose(ListHead* l){
 	}
 }
 
-
 void closeSocket(int fd) {
 	int ret;
 		
@@ -112,4 +110,3 @@ void closeSocket(int fd) {
          ERROR_HELPER( -1,"Error: close socket failed");
    }
 }
-

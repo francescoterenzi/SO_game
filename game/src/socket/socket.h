@@ -7,7 +7,7 @@
 #define UDP_SOCKET_NAME   "[UDP]"
 #define TCP_SOCKET_NAME   "[TCP]"
 #define UDP_PORT        3000
-#define TCP_PORT        4000
+#define TCP_PORT        3000
 #define MAX_CONN_QUEUE  20
 #define UDP_BUFLEN      512
 

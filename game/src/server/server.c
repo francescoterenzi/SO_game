@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 		
 		Server_addSocket(&socket_list , client_desc);
 
-		pthread_t thread;
+		pthread_t client_thread;
 		thread_args* args = (thread_args*)malloc(sizeof(thread_args));
 		args->socket_desc = client_desc;
 		args->id = id;  //here assigned id to client
@@ -100,10 +100,10 @@ int main(int argc, char **argv) {
 		
 		id++;
 		
-		ret = pthread_create(&thread, NULL, tcp_client_handler, (void*)args);
+		ret = pthread_create(&client_thread, NULL, tcp_client_handler, (void*)args);
 		PTHREAD_ERROR_HELPER(ret, "Could not create a new thread");
 
-		ret = pthread_detach(thread); 
+		ret = pthread_detach(client_thread); 
 	    PTHREAD_ERROR_HELPER(ret, "Could not detach the thread");
 
 	}
